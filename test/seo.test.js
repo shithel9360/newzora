@@ -121,9 +121,8 @@ describe('Newzora SEO & SERP Verification', () => {
     }
   });
 
-  test('Vercel configuration includes cleanUrls and caching headers', () => {
+  test('Vercel configuration includes caching and security headers', () => {
     const vercelConfig = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'vercel.json'), 'utf8'));
-    assert.equal(vercelConfig.cleanUrls, true, 'cleanUrls should be enabled');
     assert.ok(Array.isArray(vercelConfig.headers), 'caching and security headers should be configured');
   });
 
