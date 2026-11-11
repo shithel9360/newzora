@@ -147,4 +147,21 @@ describe('Newzora SEO & SERP Verification', () => {
     assert.match(indexHtml, /<meta\s+name="google-site-verification"\s+content="google64f3ab4c81877d0d"/);
   });
 
+  test('PWA site.webmanifest exists and parses correctly', () => {
+    const manifestPath = path.join(DIST, 'site.webmanifest');
+    assert.ok(fs.existsSync(manifestPath), 'site.webmanifest must exist');
+    const parsed = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    assert.equal(parsed.name, 'Newzora — Verified Tech News');
+    assert.ok(Array.isArray(parsed.icons));
+  });
+
+  test('Article pages contain previous/next story navigation and share buttons', () => {
+    const postDir = path.join(DIST, 'post');
+    const files = fs.readdirSync(postDir).filter(f => f.endsWith('.html'));
+    const sample = fs.readFileSync(path.join(postDir, files[0]), 'utf8');
+    assert.match(sample, /class="post-nav"/, 'Must have post navigation');
+    assert.match(sample, /class="share-bar"/, 'Must have share bar');
+    assert.match(sample, /<main>/, 'Must have semantic main tag');
+  });
+
 });

@@ -99,7 +99,8 @@ header{position:sticky;top:0;z-index:20;background:rgba(4,7,15,.96);backdrop-fil
 .hwrap img{width:42px;height:42px;border-radius:50%;object-fit:cover}
 .brand{font-weight:800;font-size:22px;letter-spacing:.5px;line-height:1}.brand span{color:var(--cy)}
 .tag{color:var(--mut);font-size:11px;letter-spacing:2px;text-transform:uppercase}
-nav{margin-left:18px;display:flex;gap:16px;font-size:13px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--mut);overflow-x:auto}
+nav{margin-left:18px;display:flex;gap:16px;font-size:13px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--mut);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
 nav a{white-space:nowrap;transition:color .2s}nav a:hover,nav a.active{color:var(--cy)}
 .follow{margin-left:auto;background:var(--cy);color:#02131f;font-weight:800;padding:9px 16px;border-radius:99px;font-size:13px;display:inline-block;white-space:nowrap}
 .wrap{max-width:1180px;margin:0 auto;padding:0 16px}
@@ -126,7 +127,7 @@ nav a{white-space:nowrap;transition:color .2s}nav a:hover,nav a.active{color:var
 .ritem h3,.ritem h4{margin:3px 0 0;font-size:14.5px;line-height:1.3;font-weight:600}
 .meta{color:var(--mut);font-size:12px;display:flex;gap:9px;align-items:center;flex-wrap:wrap}
 .excerpt{color:var(--mut);line-height:1.55}
-.btn{display:inline-block;background:var(--cy);color:#02131f;font-weight:700;padding:10px 18px;border-radius:10px;transition:opacity .2s}
+.btn{display:inline-block;background:var(--cy);color:#02131f;font-weight:700;padding:10px 18px;border-radius:10px;transition:opacity .2s;cursor:pointer;border:none}
 .btn:hover{opacity:.9}
 .btn.ghost{background:transparent;color:var(--cy);border:1px solid var(--cy)}
 .btn.ghost:hover{background:rgba(25,182,255,.1)}
@@ -175,7 +176,14 @@ article h1{font-size:clamp(27px,4vw,44px);line-height:1.15;margin:12px 0 10px}
 .source-box{margin:24px 0 18px;padding:14px 18px;background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--grn);border-radius:10px;display:flex;flex-direction:column;gap:5px;font-size:13.5px}
 .source-tag{font-weight:700;color:var(--grn);font-size:11.5px;text-transform:uppercase;letter-spacing:1px}
 .source-text{color:var(--txt);line-height:1.5}
-.share{display:flex;gap:10px;flex-wrap:wrap;margin:22px 0}
+.share-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:24px 0 16px}
+.share-bar .btn{font-size:13px;padding:8px 14px;display:inline-flex;align-items:center;gap:6px}
+.post-nav{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:32px 0 20px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:18px 0}
+.pnav-link{display:flex;flex-direction:column;gap:5px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;transition:border-color .2s}
+.pnav-link:hover{border-color:var(--cy)}
+.pnav-link.next{text-align:right}
+.pnav-label{font-size:11.5px;letter-spacing:1px;text-transform:uppercase;color:var(--cy);font-weight:700}
+.pnav-title{font-size:14.5px;color:var(--txt);font-weight:600;line-height:1.35}
 .more{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-top:14px}
 .cat-hero{margin:20px 0 30px;padding:26px;background:linear-gradient(135deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:16px}
 .cat-hero h1{font-size:clamp(26px,3.8vw,38px);margin:4px 0 10px;line-height:1.15}
@@ -194,6 +202,7 @@ footer h5{color:var(--txt);letter-spacing:1.6px;text-transform:uppercase;font-si
 footer li{list-style:none;margin:7px 0}footer ul{padding:0;margin:0}footer a:hover{color:var(--cy)}
 .fbot{border-top:1px solid var(--line);padding:14px 16px;text-align:center;color:var(--mut);font-size:12.5px}
 @media(max-width:860px){.hero{grid-template-columns:1fr}.secgrid{grid-template-columns:1fr}.fwrap{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.post-nav{grid-template-columns:1fr}.pnav-link.next{text-align:left}}
 @media(max-width:540px){.fwrap{grid-template-columns:1fr}nav{gap:12px}}`;
 
 const head = (title, desc, img, url, ogt = 'article', ld = '', activeNav = '') => {
@@ -228,6 +237,7 @@ const head = (title, desc, img, url, ogt = 'article', ld = '', activeNav = '') =
 <link rel="alternate" type="application/rss+xml" title="Newzora RSS Feed" href="${SITE}/feed.xml">
 <link rel="icon" type="image/jpeg" href="/img/logo.jpg">
 <link rel="apple-touch-icon" href="/img/logo.jpg">
+<link rel="manifest" href="/site.webmanifest">
 ${ld ? `<script type="application/ld+json">${ld}</script>` : ''}
 <style>${CSS}</style></head><body>
 <div class="strip"><div class="in"><span><b>✓ Verified</b> tech news, as it breaks</span><span style="margin-left:auto">${dstr(posts[0].date)}</span></div></div>
@@ -310,7 +320,7 @@ const homeLD = JSON.stringify({
 });
 
 let idx = head('Newzora — Verified Tech News, As It Breaks', 'Your daily tech briefing: AI, gadgets, gaming and internet news, cross-checked in 2+ sources. No rumours, just verified news.', hero.image, SITE + '/', 'website', homeLD)
-+ `<div class="wrap"><section class="hero"><a class="lead" href="/post/${hero.slug}.html"><img src="/${hero.image}" alt="${esc(hero.title)}" width="1200" height="675" fetchpriority="high"><div class="lb"><div class="meta"><span class="kicker">${esc(hero.category)}</span><span class="verified">✓ VERIFIED IN 2+ SOURCES</span><span>${dstr(hero.date)}</span></div><h1>${esc(hero.title)}</h1><div class="excerpt">${excerpt(hero, 240)}…</div></div></a>
++ `<main><div class="wrap"><section class="hero"><a class="lead" href="/post/${hero.slug}.html"><img src="/${hero.image}" alt="${esc(hero.title)}" width="1200" height="675" fetchpriority="high"><div class="lb"><div class="meta"><span class="kicker">${esc(hero.category)}</span><span class="verified">✓ VERIFIED IN 2+ SOURCES</span><span>${dstr(hero.date)}</span></div><h1>${esc(hero.title)}</h1><div class="excerpt">${excerpt(hero, 240)}…</div></div></a>
 <aside class="rail"><h2>Latest Stories</h2>${rail.map(ritem).join('')}</aside></section>
 <section class="trend"><h2>🔥 Trending Now</h2><div class="trow">${trending.map((p, i) => `<a class="titem" href="/post/${p.slug}.html"><span class="tnum">${i + 1}</span><h4>${esc(p.title)}</h4></a>`).join('')}</div></section>`;
 
@@ -321,27 +331,45 @@ for (const c of catOrder) {
   idx += `<section class="sec"><h2><a href="/category/${c.toLowerCase()}.html">${c}</a></h2><div class="secgrid"><a class="card big" href="/post/${cp[0].slug}.html"><img loading="lazy" src="/${cp[0].image}" alt="${esc(cp[0].title)}" width="800" height="500"><div class="cb"><div class="meta"><span class="kicker">${esc(c)}</span><span>${dstr(cp[0].date)}</span></div><h3>${esc(cp[0].title)}</h3><div class="excerpt">${excerpt(cp[0])}…</div></div></a><div class="minis">${cp.slice(1, 3).map(mini).join('')}</div><div class="minis">${cp.slice(3, 5).map(mini).join('')}</div></div></section>`;
 }
 
-idx += `<section class="sec" id="latest"><h2>The Feed</h2><div class="controls">${['All', ...new Set(posts.map(p => p.category))].map((c, i) => `<button class="fchip${i === 0 ? ' on' : ''}" data-f="${esc(c)}">${esc(c)}</button>`).join('')}<input id="q" type="search" placeholder="Search news…"></div>
-<div class="river">${posts.map(p => `<a class="rrow" href="/post/${p.slug}.html" data-cat="${esc(p.category)}" data-t="${esc((p.title + ' ' + p.body).toLowerCase())}"><img loading="lazy" src="/${p.image}" alt="${esc(p.title)}" width="92" height="92"><div><div class="kicker">${esc(p.category)}</div><h4>${esc(p.title)}</h4><div class="meta">${dstr(p.date)} · <span class="verified">✓ Verified</span></div></div></a>`).join('')}</div></section>
+idx += `<section class="sec" id="latest"><h2>The Feed</h2><div class="controls">${['All', ...new Set(posts.map(p => p.category))].map((c, i) => `<button class="fchip${i === 0 ? ' on' : ''}" data-f="${esc(c)}">${esc(c)}</button>`).join('')}<input id="q" type="search" placeholder="Search news…" aria-label="Search tech news"></div>
+<div class="river">${posts.map(p => `<a class="rrow" href="/post/${p.slug}.html" data-cat="${esc(p.category)}" data-t="${esc((p.title + ' ' + (paras(p)[0] || '')).toLowerCase())}"><img loading="lazy" src="/${p.image}" alt="${esc(p.title)}" width="92" height="92"><div><div class="kicker">${esc(p.category)}</div><h4>${esc(p.title)}</h4><div class="meta">${dstr(p.date)} · <span class="verified">✓ Verified</span></div></div></a>`).join('')}</div>
+<div id="no-res" style="display:none;padding:36px 16px;text-align:center;color:var(--mut);font-size:15px">No stories found matching your query.</div>
+</section>
 <section class="trust"><div class="tcard"><div class="n">01</div><h3>We scan the trend</h3><p>Every story starts as a live trend — a launch, a leak, a move by a tech giant — spotted as it breaks, never copied from another page.</p></div>
 <div class="tcard"><div class="n">02</div><h3>We cross-check it twice</h3><p>Each story is verified in 2+ reputable sources — facts, specs and dates — before anything is published. If it cannot be verified, it does not run.</p></div>
-<div class="tcard"><div class="n">03</div><h3>Real photos, no rumours</h3><p>Every poster is built on the story's real photo. No invented images, no hype, no rumours — just verified news, as it breaks.</p></div></section></div>
+<div class="tcard"><div class="n">03</div><h3>Real photos, no rumours</h3><p>Every poster is built on the story's real photo. No invented images, no hype, no rumours — just verified news, as it breaks.</p></div></section></div></main>
 <script>
-const chips=[...document.querySelectorAll('.fchip')],rows=[...document.querySelectorAll('.rrow')],q=document.getElementById('q');let f='All';
-function apply(){rows.forEach(r=>{r.style.display=((f==='All'||r.dataset.cat===f)&&r.dataset.t.includes(q.value.toLowerCase()))?'':'none'})}
-chips.forEach(b=>b.onclick=()=>{chips.forEach(x=>x.classList.remove('on'));b.classList.add('on');f=b.dataset.f;apply()});q.oninput=apply;
+const chips=[...document.querySelectorAll('.fchip')],rows=[...document.querySelectorAll('.rrow')],q=document.getElementById('q'),noRes=document.getElementById('no-res');
+let f='All';
+function apply(){
+  const query = q.value.trim().toLowerCase();
+  let count = 0;
+  rows.forEach(r=>{
+    const matchCat = f==='All'||r.dataset.cat===f;
+    const matchQ = !query || r.dataset.t.includes(query);
+    const show = matchCat && matchQ;
+    r.style.display = show ? '' : 'none';
+    if(show) count++;
+  });
+  if(noRes) noRes.style.display = count === 0 ? 'block' : 'none';
+}
+chips.forEach(b=>b.onclick=()=>{chips.forEach(x=>x.classList.remove('on'));b.classList.add('on');f=b.dataset.f;apply()});
+q.oninput=apply;
 </script>` + foot;
 
 fs.writeFileSync(path.join(dist, 'index.html'), idx);
 
 // 2. Individual Article Pages
-posts.forEach(p => {
+posts.forEach((p, i) => {
   const { source, bodyParagraphs } = parseSource(p.body);
   const btns = Object.entries(p.links || {}).map(([k, u]) => `<a class="btn ghost" href="${u}" target="_blank" rel="noopener">See on ${k[0].toUpperCase() + k.slice(1)}</a>`).join('');
   const sameCat = posts.filter(x => x.category === p.category && x.id !== p.id).slice(0, 3);
   const more = (sameCat.length ? sameCat : posts.filter(x => x.id !== p.id).slice(0, 3)).map(card).join('');
   const catSlug = p.category.toLowerCase();
   const desc = cleanDescription(p.body, 155);
+
+  const prevPost = posts[i + 1] || null; // older story
+  const nextPost = posts[i - 1] || null; // newer story
 
   const artLD = JSON.stringify({
     '@context': 'https://schema.org',
@@ -392,8 +420,29 @@ posts.forEach(p => {
     ? `<div class="source-box"><span class="source-tag">✓ Verified Sources</span><span class="source-text">${esc(source)}</span></div>`
     : `<div class="source-box"><span class="source-tag">✓ Editorial Standard</span><span class="source-text">Cross-checked in 2+ independent industry sources prior to publication.</span></div>`;
 
+  const shareUrl = `${SITE}/post/${p.slug}.html`;
+  const shareText = encodeURIComponent(p.title);
+  const encUrl = encodeURIComponent(shareUrl);
+  const twitterShare = `https://twitter.com/intent/tweet?text=${shareText}&url=${encUrl}`;
+  const waShare = `https://api.whatsapp.com/send?text=${shareText}%20${encUrl}`;
+
+  const shareButtonsHtml = `
+  <div class="share-bar">
+    <span style="font-size:12px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:1px">Share:</span>
+    <a class="btn ghost" href="${twitterShare}" target="_blank" rel="noopener">Share on X</a>
+    <a class="btn ghost" href="${waShare}" target="_blank" rel="noopener">WhatsApp</a>
+    <button class="btn ghost" onclick="navigator.clipboard.writeText(window.location.href).then(()=>{this.textContent='Copied!';setTimeout(()=>this.textContent='Copy Link',2000)})">Copy Link</button>
+    ${btns}
+  </div>`;
+
+  const postNavHtml = `
+  <div class="post-nav">
+    ${prevPost ? `<a class="pnav-link prev" href="/post/${prevPost.slug}.html"><span class="pnav-label">← Previous Story</span><span class="pnav-title">${esc(prevPost.title)}</span></a>` : '<div></div>'}
+    ${nextPost ? `<a class="pnav-link next" href="/post/${nextPost.slug}.html"><span class="pnav-label">Next Story →</span><span class="pnav-title">${esc(nextPost.title)}</span></a>` : '<div></div>'}
+  </div>`;
+
   const html = head(`${p.title} — Newzora`, desc, p.image, `${SITE}/post/${p.slug}.html`, 'article', artLD, p.category)
-  + `<article>
+  + `<main><article>
   <nav class="bc" aria-label="Breadcrumb">
     <ol itemscope itemtype="https://schema.org/BreadcrumbList">
       <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><a itemprop="item" href="/"><span itemprop="name">Home</span></a><meta itemprop="position" content="1"></li>
@@ -412,10 +461,11 @@ posts.forEach(p => {
   <img class="poster" src="/${p.image}" alt="${esc(p.title)}" width="1200" height="675" fetchpriority="high" decoding="async">
   <div class="body">${bodyParagraphs.slice(1).map(x => `<p>${esc(x)}</p>`).join('')}</div>
   ${sourceBoxHtml}
-  <div class="share">${btns}</div>
+  ${shareButtonsHtml}
+  ${postNavHtml}
   <h2 style="font-size:22px;margin-top:36px;border-bottom:1px solid var(--line);padding-bottom:10px">More in ${esc(p.category)}</h2>
   <div class="more">${more}</div>
-  </article>` + foot;
+  </article></main>` + foot;
 
   fs.writeFileSync(path.join(dist, 'post', `${p.slug}.html`), html);
 });
@@ -457,7 +507,7 @@ CATEGORIES.forEach(cat => {
   const catImage = catPosts[0] ? catPosts[0].image : 'img/logo.jpg';
 
   let catHtml = head(catTitle, cat.desc, catImage, catUrl, 'website', catLD, cat.name)
-  + `<div class="wrap">
+  + `<main><div class="wrap">
   <nav class="bc" aria-label="Breadcrumb">
     <ol itemscope itemtype="https://schema.org/BreadcrumbList">
       <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><a itemprop="item" href="/"><span itemprop="name">Home</span></a><meta itemprop="position" content="1"></li>
@@ -470,7 +520,7 @@ CATEGORIES.forEach(cat => {
     <p>${esc(cat.desc)} Every development verified in 2+ primary sources.</p>
   </div>
   <div class="cat-grid">${catPosts.map(card).join('')}</div>
-  </div>` + foot;
+  </div></main>` + foot;
 
   fs.writeFileSync(path.join(dist, 'category', `${cat.slug}.html`), catHtml);
 });
@@ -486,7 +536,7 @@ const aboutLD = JSON.stringify({
 });
 
 const aboutHtml = head('About Newzora — Verified Tech Journalism & Standards', 'Why Newzora exists: verified tech news without rumours, clickbait, or unverified leaks. Cross-checked in 2+ independent sources.', 'img/logo.jpg', `${SITE}/about.html`, 'website', aboutLD)
-+ `<div class="static-page">
++ `<main><div class="static-page">
 <nav class="bc" aria-label="Breadcrumb">
   <ol itemscope itemtype="https://schema.org/BreadcrumbList">
     <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><a itemprop="item" href="/"><span itemprop="name">Home</span></a><meta itemprop="position" content="1"></li>
@@ -511,7 +561,7 @@ const aboutHtml = head('About Newzora — Verified Tech Journalism & Standards',
 </ul>
 <h2>Our Publishing Network</h2>
 <p>Newzora publishes in visual cards and briefing formats across our website and social channels on Instagram, Threads, and Facebook (<code>@new_zora</code>). Each card features real hardware or company imagery with zero invented graphics.</p>
-</div>` + foot;
+</div></main>` + foot;
 fs.writeFileSync(path.join(dist, 'about.html'), aboutHtml);
 
 // Editorial Policy Page
@@ -524,7 +574,7 @@ const policyLD = JSON.stringify({
 });
 
 const policyHtml = head('Editorial Policy, Fact-Checking & Corrections — Newzora', 'Our journalistic standards: verification protocols, anonymous source handling, error corrections, and ethical boundaries.', 'img/logo.jpg', `${SITE}/editorial-policy.html`, 'website', policyLD)
-+ `<div class="static-page">
++ `<main><div class="static-page">
 <nav class="bc" aria-label="Breadcrumb">
   <ol itemscope itemtype="https://schema.org/BreadcrumbList">
     <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><a itemprop="item" href="/"><span itemprop="name">Home</span></a><meta itemprop="position" content="1"></li>
@@ -547,7 +597,7 @@ const policyHtml = head('Editorial Policy, Fact-Checking & Corrections — Newzo
 <p>Newzora maintains complete independence from tech manufacturers, advertisers, and investors. We accept no paid editorial placements, no sponsored news coverage, and no review gifts with editorial preconditions.</p>
 <h2>4. AI Transparency</h2>
 <p>All factual claims, numbers, dates, and conclusions are curated and validated by human editors prior to release.</p>
-</div>` + foot;
+</div></main>` + foot;
 fs.writeFileSync(path.join(dist, 'editorial-policy.html'), policyHtml);
 
 // Contact Page
@@ -560,7 +610,7 @@ const contactLD = JSON.stringify({
 });
 
 const contactHtml = head('Contact Us & News Tips — Newzora', 'Contact the Newzora news desk. Send press releases, verified tips, or request factual corrections.', 'img/logo.jpg', `${SITE}/contact.html`, 'website', contactLD)
-+ `<div class="static-page">
++ `<main><div class="static-page">
 <nav class="bc" aria-label="Breadcrumb">
   <ol itemscope itemtype="https://schema.org/BreadcrumbList">
     <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><a itemprop="item" href="/"><span itemprop="name">Home</span></a><meta itemprop="position" content="1"></li>
@@ -579,10 +629,30 @@ const contactHtml = head('Contact Us & News Tips — Newzora', 'Contact the Newz
   <h2>Corrections &amp; Feedback</h2>
   <p>If you identify a factual inaccuracy in any Newzora story, please message us with the story link and corroborating documentation. Our editors review all correction requests within 24 hours.</p>
 </div>
-</div>` + foot;
+</div></main>` + foot;
 fs.writeFileSync(path.join(dist, 'contact.html'), contactHtml);
 
-// 5. Google News XML Sitemap (Recent stories)
+// 5. PWA Manifest (site.webmanifest)
+const manifestJson = JSON.stringify({
+  name: 'Newzora — Verified Tech News',
+  short_name: 'Newzora',
+  description: 'Your daily verified tech briefing. AI, gadgets, gaming, and internet news cross-checked in 2+ independent sources.',
+  start_url: '/',
+  display: 'standalone',
+  background_color: '#04070f',
+  theme_color: '#04070f',
+  icons: [
+    {
+      src: '/img/logo.jpg',
+      sizes: '512x512',
+      type: 'image/jpeg',
+      purpose: 'any maskable'
+    }
+  ]
+}, null, 2);
+fs.writeFileSync(path.join(dist, 'site.webmanifest'), manifestJson);
+
+// 6. Google News XML Sitemap (Recent stories)
 const newsSitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
@@ -600,7 +670,7 @@ ${posts.map(p => `  <url>
 </urlset>`;
 fs.writeFileSync(path.join(dist, 'news-sitemap.xml'), newsSitemapXml);
 
-// 6. Comprehensive Standard XML Sitemap (with image extensions)
+// 7. Comprehensive Standard XML Sitemap (with image extensions)
 const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
@@ -642,7 +712,7 @@ ${posts.map(p => `  <url>
 </urlset>`;
 fs.writeFileSync(path.join(dist, 'sitemap.xml'), sitemapXml);
 
-// 7. RSS 2.0 Feed (feed.xml & rss.xml) for Google News Publisher Center, aggregators & feed readers
+// 8. RSS 2.0 Feed (feed.xml & rss.xml) for Google News Publisher Center, aggregators & feed readers
 const rssFeedXml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/">
   <channel>
@@ -667,7 +737,7 @@ ${posts.map(p => `    <item>
 fs.writeFileSync(path.join(dist, 'feed.xml'), rssFeedXml);
 fs.writeFileSync(path.join(dist, 'rss.xml'), rssFeedXml);
 
-// 8. Robots.txt
+// 9. Robots.txt
 const robotsTxt = `User-agent: *
 Allow: /
 
@@ -684,4 +754,5 @@ console.log(`[SEO Engine] Build complete:
 - 1 Google News XML Sitemap (${posts.length} stories)
 - 1 Standard XML Sitemap with images & priority
 - 2 RSS 2.0 Feeds (feed.xml & rss.xml)
+- 1 PWA Manifest (site.webmanifest)
 - 1 Robots.txt with multi-sitemap indexing directives`);
