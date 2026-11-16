@@ -40,6 +40,35 @@ const dstr = d => new Date(d + 'T12:00:00Z').toLocaleDateString('en-US', { day: 
 const dstrIso = d => `${d}T08:00:00Z`;
 const paras = p => p.body.split('\n').map(x => x.trim()).filter(Boolean);
 
+// Read real JPEG dimensions from the SOF marker, so og:image / RSS media tags
+// always match the actual file (posters are 880x1100, the logo is 1080x1080).
+const jpegSize = file => {
+  try {
+    const d = fs.readFileSync(file);
+    let i = 2;
+    while (i < d.length - 9) {
+      if (d[i] !== 0xFF) { i++; continue; }
+      const m = d[i + 1];
+      if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) {
+        return { width: d.readUInt16BE(i + 7), height: d.readUInt16BE(i + 5) };
+      }
+      i += 2 + d.readUInt16BE(i + 2);
+    }
+  } catch (_) { /* unreadable — caller omits dimensions */ }
+  return null;
+};
+
+// `width="W" height="H"` attribute fragment from the real JPEG file.
+const imgDimsAttr = img => {
+  const d = jpegSize(path.join(dist, img.replace(/^\/+/, '')));
+  return d ? `width="${d.width}" height="${d.height}"` : '';
+};
+// "Tech Business" -> "tech-business"). Unknown names slugify as a fallback.
+const categorySlug = name => {
+  const c = CATEGORIES.find(x => x.name.toLowerCase() === String(name).toLowerCase());
+  return c ? c.slug : String(name).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+};
+
 const cleanDescription = (body, maxLen = 155) => {
   const withoutHashes = String(body || '').replace(/^#{1,3}\s+/gm, '');
   const withoutSource = withoutHashes.replace(/Sources?:\s*.*$/i, '').trim();
@@ -99,8 +128,19 @@ const CATEGORIES = [
   { name: 'Gaming', slug: 'gaming', desc: 'Console platform metrics, real-time rendering pipelines, GPU silicon, and studio disclosures.' },
   { name: 'Mobile', slug: 'mobile', desc: 'Baseband hardware, operating system architectures, display technologies, and device rollouts.' },
   { name: 'Cybersecurity', slug: 'cybersecurity', desc: 'CVE vulnerability disclosures, cryptographic verification, exploit mitigations, and defense advisories.' },
-  { name: 'Tech', slug: 'tech', desc: 'Semiconductor manufacturing, supply chain infrastructure, technical leadership, and antitrust proceedings.' }
+  { name: 'Tech', slug: 'tech', desc: 'Semiconductor manufacturing, supply chain infrastructure, technical leadership, and antitrust proceedings.' },
+  { name: 'Tech Business', slug: 'tech-business', desc: 'Big Tech earnings, leadership changes, mergers and acquisitions, venture funding, and market-moving corporate strategy.' },
+  { name: 'Space', slug: 'space', desc: 'Launch vehicles, orbital infrastructure, satellite constellations, crewed missions, and deep-space exploration.' },
+  { name: 'Microsoft', slug: 'microsoft', desc: 'Windows, Microsoft 365, Azure, developer platforms, and .NET releases.' },
+  { name: 'EV', slug: 'ev', desc: 'Electric vehicles, battery technology, charging infrastructure, and autonomous driving.' },
+  { name: 'Smart Home', slug: 'smart-home', desc: 'Connected home hardware, voice assistants, Matter, and home automation.' },
+  { name: 'Wearables', slug: 'wearables', desc: 'Smartwatches, health sensors, smart glasses, and body-worn computing.' },
+  { name: 'Science', slug: 'science', desc: 'Research breakthroughs, quantum computing, biotechnology, and energy science.' },
+  { name: 'Apple', slug: 'apple', desc: 'iPhone, Mac, iPad, Apple silicon, services, and ecosystem updates.' }
 ];
+
+// Header nav keeps the six primary desks; every category is listed in the footer.
+const NAV_CATEGORIES = CATEGORIES.slice(0, 6);
 
 const BIG = ['apple', 'nvidia', 'google', 'anthropic', 'openai', 'samsung', 'tesla', 'meta', 'microsoft', 'amazon', 'xiaomi', 'huawei', 'sony', 'tsmc', 'carplay'];
 const trending = posts.filter(p => BIG.some(b => (p.title + ' ' + p.body).toLowerCase().includes(b))).slice(0, 5);
@@ -193,6 +233,39 @@ button, input {
 :focus-visible {
   outline: 2px solid rgba(255, 255, 255, 0.4);
   outline-offset: 2px;
+}
+
+:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.4);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: var(--accent-action);
+  color: var(--accent-action-fg);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 0 0 8px 0;
+}
+.skip-link:focus {
+  left: 0;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .mono {
@@ -617,7 +690,7 @@ nav a.active {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 14px;
+  margin: 0 0 14px;
   font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -1287,7 +1360,7 @@ footer {
   margin: 10px 0 0;
   max-width: 320px;
 }
-footer h5 {
+footer .fhead {
   color: var(--text-primary);
   font-family: var(--font-mono);
   font-size: 11px;
@@ -1355,9 +1428,10 @@ footer a:hover {
 }
 `;
 
-const head = (title, desc, img, url, ogt = 'article', ld = '', activeNav = '') => {
+const head = (title, desc, img, url, ogt = 'article', ld = '', activeNav = '', articleMeta = null) => {
   const cleanDesc = cleanDescription(desc, 155);
   const imgUrl = img.startsWith('http') ? img : `${SITE}/${img.replace(/^\/+/, '')}`;
+  const imgDims = img.startsWith('http') ? null : jpegSize(path.join(dist, img.replace(/^\/+/, '')));
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title>
@@ -1375,15 +1449,19 @@ const head = (title, desc, img, url, ogt = 'article', ld = '', activeNav = '') =
 <meta property="og:url" content="${url}">
 <meta property="og:type" content="${ogt}">
 <meta property="og:image" content="${imgUrl}">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="675">
+${imgDims ? `<meta property="og:image:width" content="${imgDims.width}">
+<meta property="og:image:height" content="${imgDims.height}">` : ''}
 <meta property="og:image:alt" content="${esc(title)}">
+${ogt === 'article' && articleMeta ? `<meta property="article:published_time" content="${articleMeta.published}">
+<meta property="article:modified_time" content="${articleMeta.published}">
+<meta property="article:section" content="${esc(articleMeta.section)}">` : ''}
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:site" content="@new_zora">
 <meta name="twitter:creator" content="@new_zora">
 <meta name="twitter:title" content="${esc(title)}">
 <meta name="twitter:description" content="${esc(cleanDesc)}">
 <meta name="twitter:image" content="${imgUrl}">
+<meta name="twitter:image:alt" content="${esc(title)}">
 <link rel="alternate" type="application/rss+xml" title="Newzora RSS Feed" href="${SITE}/feed.xml">
 <link rel="icon" type="image/jpeg" href="/img/logo.jpg">
 <link rel="apple-touch-icon" href="/img/logo.jpg">
@@ -1393,10 +1471,11 @@ const head = (title, desc, img, url, ogt = 'article', ld = '', activeNav = '') =
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 ${ld ? `<script type="application/ld+json">${ld}</script>` : ''}
 <style>${CSS}</style></head><body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
 <div class="strip">
   <div class="in">
     <span class="live-dot" aria-hidden="true"></span>
-    <span class="strip-source">Independent Technical Journalism</span>
+    <span class="strip-source">Technology Without Borders</span>
     <span class="mono" style="color:var(--text-tertiary)">· Two-Source Corroborated</span>
     <span class="strip-date">${dstr(posts[0].date)}</span>
   </div>
@@ -1408,7 +1487,7 @@ ${ld ? `<script type="application/ld+json">${ld}</script>` : ''}
       <div class="brand-title">NEWZORA <span>DISPATCH</span></div>
     </a>
     <nav aria-label="Primary Navigation">
-      ${CATEGORIES.map(c => `<a href="/category/${c.slug}.html"${activeNav === c.name ? ' class="active"' : ''}>${c.name}</a>`).join('')}
+      ${NAV_CATEGORIES.map(c => `<a href="/category/${c.slug}.html"${activeNav === c.name ? ' class="active"' : ''}>${c.name}</a>`).join('')}
     </nav>
     <div class="header-actions">
       <a class="btn ghost mono" href="/#latest" aria-label="Jump to search">${icons.search}<span>Search</span></a>
@@ -1426,13 +1505,13 @@ const foot = `
       <p>Continuous technical journalism across artificial intelligence, semiconductor silicon, and consumer systems. Every dispatch is corroborated across two or more primary sources prior to transmission.</p>
     </div>
     <div>
-      <h5>Coverage Desks</h5>
+      <h2 class="fhead">Coverage Desks</h2>
       <ul>
         ${CATEGORIES.map(c => `<li><a href="/category/${c.slug}.html">${c.name}</a></li>`).join('')}
       </ul>
     </div>
     <div>
-      <h5>Editorial Standards</h5>
+      <h2 class="fhead">Editorial Standards</h2>
       <ul>
         <li><a href="/about.html">About Newzora</a></li>
         <li><a href="/editorial-policy.html">Editorial &amp; Verification Policy</a></li>
@@ -1441,7 +1520,7 @@ const foot = `
       </ul>
     </div>
     <div>
-      <h5>Syndication &amp; Networks</h5>
+      <h2 class="fhead">Syndication &amp; Networks</h2>
       <ul>
         <li><a href="${SOCIALS.Instagram}" target="_blank" rel="noopener">Instagram (@new_zora)</a></li>
         <li><a href="${SOCIALS.Threads}" target="_blank" rel="noopener">Threads (@new_zora)</a></li>
@@ -1451,7 +1530,7 @@ const foot = `
     </div>
   </div>
   <div class="fbot">
-    © ${new Date().getFullYear()} Newzora Technical Media. All dispatches verified through 2+ independent regulatory, corporate, or primary industry sources.
+    © ${new Date().getFullYear()} NEWZORA — Technology Without Borders. All dispatches verified through 2+ independent regulatory, corporate, or primary industry sources.
   </div>
 </footer>
 </body></html>`;
@@ -1553,7 +1632,7 @@ let indexHtml = head(
   'website',
   homeLD
 )
-+ `<main><div class="wrap">
++ `<main id="main-content"><div class="wrap">
   <!-- Asymmetric Editorial Hero -->
   <section class="hero-layout" aria-label="Featured Story and Latest Dispatches">
     <a class="lead-story" href="/post/${hero.slug}.html">
@@ -1587,7 +1666,7 @@ let indexHtml = head(
 
   <!-- Trending Intelligence Strip -->
   <section class="trend-strip" aria-label="Trending Coverage">
-    <div class="trend-header">${icons.activity} Trending Intelligence</div>
+    <h2 class="trend-header">${icons.activity} Trending Intelligence</h2>
     <div class="trend-grid">
       ${trending.map((p, i) => `
       <a class="trend-card" href="/post/${p.slug}.html">
@@ -1606,7 +1685,7 @@ for (const c of catOrder) {
   <section class="sec" aria-label="${esc(c)} Coverage">
     <div class="section-head">
       <h2 class="section-title"><span class="pill-cat">${esc(c)}</span> Desk Briefing</h2>
-      <a class="section-link" href="/category/${c.toLowerCase()}.html">Explore ${esc(c)} ${icons.arrowRight}</a>
+      <a class="section-link" href="/category/${categorySlug(c)}.html">Explore ${esc(c)} ${icons.arrowRight}</a>
     </div>
     <div class="mag-grid">
       ${card(cp[0], true)}
@@ -1623,6 +1702,7 @@ for (const c of catOrder) {
 // The Interactive Wire / Feed Section
 indexHtml += `
   <section class="wire-section" id="latest" aria-label="Search and Dispatch Archive">
+    <h2 class="sr-only">Latest dispatches</h2>
     <div class="wire-head">
       <div class="wire-filters">
         ${['All', ...new Set(posts.map(p => p.category))].map((c, i) => `
@@ -1630,13 +1710,14 @@ indexHtml += `
       </div>
       <div class="search-box">
         <span class="search-icon">${icons.search}</span>
+        <label class="sr-only" for="q">Filter dispatches</label>
         <input id="q" class="search-input" type="search" placeholder="Filter dispatches…" aria-label="Filter tech news">
         <span class="search-badge">/</span>
       </div>
     </div>
     <div class="wire-stream">
       ${posts.map(p => `
-      <a class="wire-row" href="/post/${p.slug}.html" data-cat="${esc(p.category)}" data-t="${esc((p.title + ' ' + (paras(p)[0] || '')).toLowerCase())}">
+      <a class="wire-row" href="/post/${p.slug}.html" data-cat="${esc(p.category)}" data-t="${esc((p.title + ' ' + (paras(p)[0] || '').replace(/^#{1,3}\s+/, '')).toLowerCase())}">
         <img loading="lazy" src="/${p.image}" alt="${esc(p.title)}" class="wire-thumb" width="78" height="78">
         <div class="wire-details">
           <div class="wire-meta">
@@ -1657,6 +1738,7 @@ indexHtml += `
 
   <!-- Editorial Pillars -->
   <section class="trust-grid" aria-label="Editorial Standards">
+    <h2 class="sr-only">Editorial standards</h2>
     <div class="trust-card">
       <span class="trust-index">PILLAR 01</span>
       <h3 class="trust-title">Multi-Source Corroboration</h3>
@@ -1730,7 +1812,7 @@ posts.forEach((p, i) => {
 
   const sameCat = posts.filter(x => x.category === p.category && x.id !== p.id).slice(0, 3);
   const more = (sameCat.length ? sameCat : posts.filter(x => x.id !== p.id).slice(0, 3)).map(x => card(x)).join('');
-  const catSlug = p.category.toLowerCase();
+  const catSlug = categorySlug(p.category);
   const desc = cleanDescription(p.body, 155);
 
   const prevPost = posts[i + 1] || null; // chronologically older
@@ -1831,9 +1913,10 @@ posts.forEach((p, i) => {
     `${SITE}/post/${p.slug}.html`,
     'article',
     artLD,
-    p.category
+    p.category,
+    { published: dstrIso(p.date), section: p.category }
   )
-  + `<main><article>
+  + `<main id="main-content"><article>
     <nav class="bc" aria-label="Breadcrumb">
       <ol itemscope itemtype="https://schema.org/BreadcrumbList">
         <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
@@ -1889,7 +1972,7 @@ posts.forEach((p, i) => {
 
 // 3. Category Hub Pages
 CATEGORIES.forEach(cat => {
-  const catPosts = posts.filter(p => p.category.toLowerCase() === cat.slug);
+  const catPosts = posts.filter(p => categorySlug(p.category) === cat.slug);
   const catTitle = `${cat.name} Tech News, Updates & Analysis — Newzora`;
   const catUrl = `${SITE}/category/${cat.slug}.html`;
 
@@ -1924,7 +2007,7 @@ CATEGORIES.forEach(cat => {
   const catImage = catPosts[0] ? catPosts[0].image : 'img/logo.jpg';
 
   let catHtml = head(catTitle, cat.desc, catImage, catUrl, 'website', catLD, cat.name)
-  + `<main><div class="wrap">
+  + `<main id="main-content"><div class="wrap">
     <nav class="bc" aria-label="Breadcrumb">
       <ol itemscope itemtype="https://schema.org/BreadcrumbList">
         <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
@@ -1947,6 +2030,7 @@ CATEGORIES.forEach(cat => {
       <p>${esc(cat.desc)} Every development verified across primary source documentation and enterprise filings.</p>
     </div>
 
+    <h2 class="sr-only">All ${esc(cat.name)} dispatches</h2>
     <div class="cat-grid">
       ${catPosts.map((p, idx) => card(p, idx === 0)).join('')}
     </div>
@@ -1973,7 +2057,7 @@ const aboutHtml = head(
   'website',
   aboutLD
 )
-+ `<main><div class="static-page">
++ `<main id="main-content"><div class="static-page">
   <nav class="bc" aria-label="Breadcrumb">
     <ol itemscope itemtype="https://schema.org/BreadcrumbList">
       <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><a itemprop="item" href="/"><span itemprop="name">Home</span></a><meta itemprop="position" content="1"></li>
@@ -2023,7 +2107,7 @@ const policyHtml = head(
   'website',
   policyLD
 )
-+ `<main><div class="static-page">
++ `<main id="main-content"><div class="static-page">
   <nav class="bc" aria-label="Breadcrumb">
     <ol itemscope itemtype="https://schema.org/BreadcrumbList">
       <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><a itemprop="item" href="/"><span itemprop="name">Home</span></a><meta itemprop="position" content="1"></li>
@@ -2070,7 +2154,7 @@ const contactHtml = head(
   'website',
   contactLD
 )
-+ `<main><div class="static-page">
++ `<main id="main-content"><div class="static-page">
   <nav class="bc" aria-label="Breadcrumb">
     <ol itemscope itemtype="https://schema.org/BreadcrumbList">
       <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><a itemprop="item" href="/"><span itemprop="name">Home</span></a><meta itemprop="position" content="1"></li>
@@ -2194,7 +2278,7 @@ ${posts.map(p => `    <item>
       <pubDate>${new Date(p.date + 'T08:00:00Z').toUTCString()}</pubDate>
       <category>${escXml(p.category)}</category>
       <description>${escXml(cleanDescription(p.body, 200))}</description>
-      <media:content url="${SITE}/${p.image}" medium="image" type="image/jpeg" width="1200" height="675" />
+      <media:content url="${SITE}/${p.image}" medium="image" type="image/jpeg" ${imgDimsAttr(p.image)} />
       <enclosure url="${SITE}/${p.image}" length="102400" type="image/jpeg" />
     </item>`).join('\n')}
   </channel>
