@@ -1,162 +1,2228 @@
-const fs = require('fs'), path = require('path');
-const posts = JSON.parse(fs.readFileSync('posts.json','utf8'));
+const fs = require('fs');
+const path = require('path');
+
+const posts = JSON.parse(fs.readFileSync('posts.json', 'utf8'));
 const dist = 'dist';
-fs.rmSync(dist,{recursive:true,force:true});
-fs.mkdirSync(path.join(dist,'post'),{recursive:true});
-fs.mkdirSync(path.join(dist,'img'),{recursive:true});
+
+// Reset output directories
+fs.rmSync(dist, { recursive: true, force: true });
+fs.mkdirSync(path.join(dist, 'post'), { recursive: true });
+fs.mkdirSync(path.join(dist, 'category'), { recursive: true });
+fs.mkdirSync(path.join(dist, 'img'), { recursive: true });
+
+// Decode base64 poster images
 for (const f of fs.readdirSync('assets')) {
-  if (f.endsWith('.b64')) fs.writeFileSync(path.join(dist,'img',f.replace('.b64','.jpg')), Buffer.from(fs.readFileSync(path.join('assets',f),'utf8'),'base64'));
+  if (f.endsWith('.b64')) {
+    fs.writeFileSync(
+      path.join(dist, 'img', f.replace('.b64', '.jpg')),
+      Buffer.from(fs.readFileSync(path.join('assets', f), 'utf8'), 'base64')
+    );
+  }
 }
-const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const dstr = d => new Date(d+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
-const paras = p => p.body.split('\n').filter(x=>x.trim());
-// Article bodies are written with "## Subhead" markers. They must NEVER reach the
-// page as literal text — render them as real styled subheadings instead.
-const cleanHashes = s => String(s).replace(/^#{1,3}\s+/gm,'');
-const bodyHtml = p => paras(p).slice(1).map(x=>x.startsWith('## ') ? `<h2>${esc(x.slice(3).trim())}</h2>` : x.startsWith('### ') ? `<h3>${esc(x.slice(4).trim())}</h3>` : `<p>${esc(x)}</p>`).join('');
-const excerpt = (p,n=150) => esc((paras(p)[1]||paras(p)[0]||'').slice(0,n));
-const SITE = 'https://newzora-pied.vercel.app';
-const SOCIALS = {Instagram:'https://www.instagram.com/new_zora',Facebook:'https://www.facebook.com/profile.php?id=61596058485989',Threads:'https://www.threads.com/@new_zora'};
-const BIG = ['apple','nvidia','google','anthropic','openai','samsung','tesla','meta','microsoft','amazon','xiaomi','huawei'];
-const trending = posts.filter(p=>BIG.some(b=>(p.title+' '+p.body).toLowerCase().includes(b))).slice(0,5);
-const CSS = `:root{--bg:#04070f;--panel:#0a1220;--panel2:#0d1830;--line:#1b2a45;--txt:#eef3fa;--mut:#93a5c0;--cy:#19b6ff;--cy2:#0a84ff;--grn:#37e0a0}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
-a{color:inherit;text-decoration:none}
-.strip{background:#02040a;color:var(--mut);font-size:12px;letter-spacing:1.2px;text-transform:uppercase;border-bottom:1px solid var(--line)}
-.strip .in{max-width:1180px;margin:0 auto;padding:7px 16px;display:flex;gap:14px}.strip b{color:var(--grn)}
-header{position:sticky;top:0;z-index:10;background:rgba(4,7,15,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-.hwrap{max-width:1180px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:12px}
-.hwrap img{width:42px;height:42px;border-radius:50%}
-.brand{font-weight:800;font-size:22px;letter-spacing:.5px;line-height:1}.brand span{color:var(--cy)}
-.tag{color:var(--mut);font-size:11px;letter-spacing:2px;text-transform:uppercase}
-nav{margin-left:18px;display:flex;gap:15px;font-size:13px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--mut)}nav a:hover{color:var(--cy)}
-.follow{margin-left:auto;background:var(--cy);color:#02131f;font-weight:800;padding:9px 16px;border-radius:99px;font-size:13px}
-.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
-.kicker{color:var(--cy);font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase}
-.verified{color:var(--grn);font-size:12px;font-weight:700}
-.hero{display:grid;grid-template-columns:2fr 1fr;gap:20px;margin:22px 0 6px}
-.lead{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
-.lead img{width:100%;aspect-ratio:16/10;object-fit:cover}
-.lead .lb{padding:22px;display:flex;flex-direction:column;gap:11px}
-.lead h1{font-size:clamp(26px,3.6vw,42px);line-height:1.12;margin:0}
-.rail{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px}
-.rail h2,.sec h2{font-size:15px;letter-spacing:2.5px;text-transform:uppercase;margin:0 0 14px;display:flex;align-items:center;gap:10px}
-.rail h2::after,.sec h2::after{content:'';flex:1;height:1px;background:var(--line)}
-.ritem{display:flex;gap:11px;padding:10px 0;border-bottom:1px solid var(--line)}.ritem:last-child{border-bottom:0}
-.ritem img{width:64px;height:64px;object-fit:cover;border-radius:9px}
-.ritem h4{margin:3px 0 0;font-size:14.5px;line-height:1.3}
-.meta{color:var(--mut);font-size:12px;display:flex;gap:9px;align-items:center;flex-wrap:wrap}
-.excerpt{color:var(--mut);line-height:1.55}
-.btn{display:inline-block;background:var(--cy);color:#02131f;font-weight:700;padding:11px 20px;border-radius:10px}
-.btn.ghost{background:transparent;color:var(--cy);border:1px solid var(--cy)}
-.trend{margin:20px 0 4px;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
-.trend h2{font-size:14px;letter-spacing:2.5px;text-transform:uppercase;margin:0 0 10px;color:var(--cy)}
-.trow{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 22px}
-.titem{display:flex;gap:11px;align-items:baseline;padding:6px 0}
-.tnum{font-size:24px;font-weight:800;color:var(--cy);line-height:1}
-.titem h4{margin:0;font-size:14.5px;line-height:1.3}
-.sec{margin:30px 0 0}
-.secgrid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:16px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
-.card img{width:100%;aspect-ratio:4/5;object-fit:cover}
-.card.big img{aspect-ratio:16/10}
-.card .cb{padding:15px;display:flex;flex-direction:column;gap:8px;flex:1}
-.card h3{margin:0;font-size:17px;line-height:1.3}.card.big h3{font-size:23px}
-.mini{display:flex;gap:11px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:11px;align-items:center}
-.mini img{width:70px;height:70px;border-radius:9px;object-fit:cover}
-.mini h4{margin:3px 0 0;font-size:14.5px;line-height:1.3}
-.minis{display:flex;flex-direction:column;gap:12px}
-.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 16px}
-.fchip{border:1px solid var(--line);background:var(--panel);color:var(--mut);padding:7px 14px;border-radius:99px;cursor:pointer;font-size:13px}
-.fchip.on{background:var(--cy);color:#02131f;font-weight:700;border-color:var(--cy)}
-#q{margin-left:auto;background:var(--panel);border:1px solid var(--line);color:var(--txt);padding:9px 14px;border-radius:10px;min-width:200px}
-.river{display:flex;flex-direction:column}
-.rrow{display:flex;gap:15px;padding:13px 4px;border-bottom:1px solid var(--line);align-items:center}
-.rrow img{width:92px;height:92px;border-radius:10px;object-fit:cover}
-.rrow h4{margin:3px 0;font-size:16.5px;line-height:1.3}
-.trust{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin:34px 0 6px}
-.tcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
-.tcard .n{font-size:26px;font-weight:800;color:var(--cy)}
-.tcard h3{margin:6px 0;font-size:16px}.tcard p{color:var(--mut);line-height:1.55;margin:0;font-size:14px}
-.followband{margin:30px 0 40px;background:linear-gradient(120deg,#0a2a4a,#051528);border:1px solid var(--line);border-radius:16px;padding:26px;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
-.followband img{width:58px;height:58px;border-radius:50%}
-.followband .btns{display:flex;gap:10px;margin-left:auto;flex-wrap:wrap}
-article{max-width:800px;margin:26px auto 44px;padding:0 16px}
-article .poster{width:100%;border-radius:14px;border:1px solid var(--line)}
-article h1{font-size:clamp(27px,4vw,44px);line-height:1.13;margin:12px 0 10px}
-.dek{font-size:19px;line-height:1.55;color:#c9d8ec;border-left:3px solid var(--cy);padding-left:14px;margin:16px 0}
-.byline{display:flex;gap:12px;align-items:center;color:var(--mut);font-size:13px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:11px 0;margin:14px 0}
-.body p{line-height:1.78;color:#dbe6f4;font-size:17px}
-.body h2{font-size:22px;line-height:1.35;margin:30px 0 10px;padding-left:12px;border-left:3px solid var(--cy)}
-.body h3{font-size:19px;line-height:1.4;margin:24px 0 8px;color:#e8f1fc}
-.share{display:flex;gap:10px;flex-wrap:wrap;margin:22px 0}
-.more{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:14px}
-footer{border-top:1px solid var(--line);color:var(--mut);font-size:13.5px;margin-top:10px}
-.fwrap{max-width:1180px;margin:0 auto;padding:26px 16px;display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:22px}
-footer h5{color:var(--txt);letter-spacing:1.6px;text-transform:uppercase;font-size:12px;margin:0 0 10px}
-footer li{list-style:none;margin:7px 0}footer ul{padding:0;margin:0}footer a:hover{color:var(--cy)}
-.fbot{border-top:1px solid var(--line);padding:14px 16px;text-align:center;color:var(--mut);font-size:12.5px}
-@media(max-width:820px){.hero{grid-template-columns:1fr}.secgrid{grid-template-columns:1fr}.fwrap{grid-template-columns:1fr}nav{display:none}}`;
-const head = (title, desc, img, url, ogt='article', ld='') => `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="google-site-verification" content="FrOSAC6sOh6Byg-HT9RABrk_MqvYRE6qCb6a76qQt74"><script>window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };</script><script defer src="/_vercel/insights/script.js"></script>
-<title>${esc(title)}</title><meta name="description" content="${esc(desc)}">
-<meta property="og:title" content="${esc(title)}"><meta property="og:description" content="${esc(desc)}"><meta property="og:image" content="${SITE}/${img}"><meta property="og:url" content="${url}"><meta property="og:type" content="${ogt}"><link rel="canonical" href="${url}"><meta name="author" content="Newzora"><meta name="theme-color" content="#04070f">${ld?`<script type="application/ld+json">${ld}</script>`:``}<meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="/img/logo.jpg"><style>${CSS}</style></head><body>
-<div class="strip"><div class="in"><span><b>✓ Verified</b> tech news, as it breaks</span><span style="margin-left:auto">${dstr(posts[0].date)}</span></div></div>
-<header><div class="hwrap"><a href="/"><img src="/img/logo.jpg" alt="Newzora"></a><div><div class="brand">NEW<span>ZORA</span></div><div class="tag">Tech &amp; Gadget News</div></div>
-<nav>${['AI','Gadgets','Gaming','Mobile','Cybersecurity','Business'].map(c=>`<a href="/#latest" data-nav="${c}">${c}</a>`).join('')}</nav>
-<a class="follow" href="${SOCIALS.Instagram}">Follow</a></div></header>`;
-const foot = `<div class="wrap"><div class="followband"><img src="/img/logo.jpg" alt="Newzora"><div><div style="font-size:20px;font-weight:800">Follow Newzora</div><div class="excerpt">Verified tech news the moment it breaks — on the platform you use most.</div></div><div class="btns">${Object.entries(SOCIALS).map(([k,u])=>`<a class="btn ghost" href="${u}">${k}</a>`).join('')}</div></div></div>
-<footer><div class="fwrap"><div><div class="brand" style="font-size:19px">NEW<span style="color:var(--cy)">ZORA</span></div><p style="line-height:1.6">Your daily tech briefing. AI • Gadgets • Gaming • Internet. Every story is cross-checked in 2+ reputable sources before it is published. No rumours. Just verified news.</p></div>
-<div><h5>Sections</h5><ul>${[...new Set(posts.map(p=>p.category))].map(c=>`<li><a href="/#latest">${c}</a></li>`).join('')}</ul></div>
-<div><h5>Follow</h5><ul>${Object.entries(SOCIALS).map(([k,u])=>`<li><a href="${u}">${k} — @new_zora</a></li>`).join('')}</ul></div></div>
-<div class="fbot">© ${new Date().getFullYear()} Newzora. All stories verified in 2+ sources.</div></footer></body></html>`;
-const card = p => `<a class="card" href="/post/${p.slug}.html"><img loading="lazy" src="/${p.image}" alt="${esc(p.title)}"><div class="cb"><div class="meta"><span class="kicker">${esc(p.category)}</span><span>${dstr(p.date)}</span></div><h3>${esc(p.title)}</h3><div class="excerpt">${excerpt(p)}…</div></div></a>`;
-const mini = p => `<a class="mini" href="/post/${p.slug}.html"><img loading="lazy" src="/${p.image}" alt=""><div><div class="kicker">${esc(p.category)}</div><h4>${esc(p.title)}</h4></div></a>`;
-const ritem = p => `<a class="ritem" href="/post/${p.slug}.html"><img loading="lazy" src="/${p.image}" alt=""><div><div class="kicker">${esc(p.category)}</div><h4>${esc(p.title)}</h4><div class="meta">${dstr(p.date)}</div></div></a>`;
-const hero = posts[0], rail = posts.slice(1,6);
-const homeLD = JSON.stringify({'@context':'https://schema.org','@graph':[
- {'@type':'Organization',name:'Newzora',url:SITE+'/',logo:SITE+'/img/logo.jpg',sameAs:Object.values(SOCIALS)},
- {'@type':'WebSite',name:'Newzora',url:SITE+'/',publisher:{'@type':'Organization',name:'Newzora'}}]});
-let idx = head('Newzora — Verified Tech News, As It Breaks','Your daily tech briefing: AI, gadgets, gaming and internet news, cross-checked in 2+ sources. No rumours, just verified news.', hero.image, SITE+'/', 'website', homeLD)
-+ `<div class="wrap"><section class="hero"><a class="lead" href="/post/${hero.slug}.html"><img src="/${hero.image}" alt="${esc(hero.title)}"><div class="lb"><div class="meta"><span class="kicker">${esc(hero.category)}</span><span class="verified">✓ VERIFIED IN 2+ SOURCES</span><span>${dstr(hero.date)}</span></div><h1>${esc(hero.title)}</h1><div class="excerpt">${excerpt(hero,240)}…</div></div></a>
-<aside class="rail"><h2>Latest</h2>${rail.map(ritem).join('')}</aside></section>
-<section class="trend"><h2>🔥 Trending Now</h2><div class="trow">${trending.map((p,i)=>`<a class="titem" href="/post/${p.slug}.html"><span class="tnum">${i+1}</span><h4>${esc(p.title)}</h4></a>`).join('')}</div></section>`;
-const catOrder = ['AI','Gadgets','Gaming','Mobile','Cybersecurity','Business','Tech'];
-for (const c of catOrder) {
-  const cp = posts.filter(p=>p.category===c);
-  if (cp.length < 3) continue;
-  idx += `<section class="sec"><h2>${c}</h2><div class="secgrid"><a class="card big" href="/post/${cp[0].slug}.html"><img loading="lazy" src="/${cp[0].image}" alt="${esc(cp[0].title)}"><div class="cb"><div class="meta"><span class="kicker">${esc(c)}</span><span>${dstr(cp[0].date)}</span></div><h3>${esc(cp[0].title)}</h3><div class="excerpt">${excerpt(cp[0])}…</div></div></a><div class="minis">${cp.slice(1,3).map(mini).join('')}</div><div class="minis">${cp.slice(3,5).map(mini).join('')}</div></div></section>`;
+
+// Google Search Console verification token & file
+const G_VERIFY_FILE = 'google64f3ab4c81877d0d.html';
+const G_VERIFY_CONTENT = 'google-site-verification: google64f3ab4c81877d0d.html\n';
+fs.writeFileSync(path.join(dist, G_VERIFY_FILE), G_VERIFY_CONTENT);
+fs.writeFileSync(G_VERIFY_FILE, G_VERIFY_CONTENT);
+
+// Copy any additional root verification and static files
+for (const f of fs.readdirSync('.')) {
+  if (f.startsWith('google') && f.endsWith('.html')) {
+    fs.copyFileSync(f, path.join(dist, f));
+  }
 }
-idx += `<section class="sec" id="latest"><h2>The Latest</h2><div class="controls">${['All',...new Set(posts.map(p=>p.category))].map((c,i)=>`<button class="fchip${i==0?' on':''}" data-f="${esc(c)}">${esc(c)}</button>`).join('')}<input id="q" type="search" placeholder="Search news…"></div>
-<div class="river">${posts.map(p=>`<a class="rrow" href="/post/${p.slug}.html" data-cat="${esc(p.category)}" data-t="${esc((p.title+' '+p.body).toLowerCase())}"><img loading="lazy" src="/${p.image}" alt=""><div><div class="kicker">${esc(p.category)}</div><h4>${esc(p.title)}</h4><div class="meta">${dstr(p.date)} · <span class="verified">✓ Verified</span></div></div></a>`).join('')}</div></section>
-<section class="trust"><div class="tcard"><div class="n">01</div><h3>We scan the trend</h3><p>Every story starts as a live trend — a launch, a leak, a move by a tech giant — spotted as it breaks, never copied from another page.</p></div>
-<div class="tcard"><div class="n">02</div><h3>We cross-check it twice</h3><p>Each story is verified in 2+ reputable sources — facts, specs and dates — before anything is published. If it cannot be verified, it does not run.</p></div>
-<div class="tcard"><div class="n">03</div><h3>Real photos, no rumours</h3><p>Every poster is built on the story's real photo. No invented images, no hype, no rumours — just verified news, as it breaks.</p></div></section></div>
-<script>
-const chips=[...document.querySelectorAll('.fchip')],rows=[...document.querySelectorAll('.rrow')],q=document.getElementById('q');let f='All';
-function apply(){rows.forEach(r=>{r.style.display=((f==='All'||r.dataset.cat===f)&&r.dataset.t.includes(q.value.toLowerCase()))?'':'none'})}
-chips.forEach(b=>b.onclick=()=>{chips.forEach(x=>x.classList.remove('on'));b.classList.add('on');f=b.dataset.f;apply()});q.oninput=apply;
-document.querySelectorAll('[data-nav]').forEach(a=>a.onclick=()=>{const c=a.dataset.nav;const b=chips.find(x=>x.dataset.f===c);if(b)b.click()});
-if(location.hash==='#latest'&&new URLSearchParams(location.search).get('c')){}
-</script>` + foot;
-fs.writeFileSync(path.join(dist,'index.html'), idx);
-posts.forEach((p,i)=>{
+
+// Data formatters and text sanitizers
+const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const escXml = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+const dstr = d => new Date(d + 'T12:00:00Z').toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+const dstrIso = d => `${d}T08:00:00Z`;
+const paras = p => p.body.split('\n').map(x => x.trim()).filter(Boolean);
+
+const cleanDescription = (body, maxLen = 155) => {
+  const withoutHashes = String(body || '').replace(/^#{1,3}\s+/gm, '');
+  const withoutSource = withoutHashes.replace(/Sources?:\s*.*$/i, '').trim();
+  const flat = withoutSource.replace(/\s+/g, ' ').trim();
+  if (flat.length <= maxLen) return flat;
+  const cut = flat.slice(0, maxLen);
+  const lastSpace = cut.lastIndexOf(' ');
+  return (lastSpace > 100 ? cut.slice(0, lastSpace) : cut).trim() + '…';
+};
+
+const excerpt = (p, n = 150) => {
   const ps = paras(p);
-  const btns = Object.entries(p.links||{}).map(([k,u])=>`<a class="btn ghost" href="${u}">See it on ${k[0].toUpperCase()+k.slice(1)}</a>`).join('');
-  const sameCat = posts.filter(x=>x.category===p.category && x.id!==p.id).slice(0,3);
-  const more = (sameCat.length?sameCat:posts.filter(x=>x.id!==p.id).slice(0,3)).map(card).join('');
-  const artLD = JSON.stringify({'@context':'https://schema.org','@graph':[
-   {'@type':'NewsArticle',headline:p.title,description:cleanHashes(p.body).slice(0,155),image:[SITE+'/'+p.image],datePublished:p.date,dateModified:p.date,author:{'@type':'Organization',name:'Newzora',url:SITE+'/'},publisher:{'@type':'Organization',name:'Newzora',logo:{'@type':'ImageObject',url:SITE+'/img/logo.jpg'}},mainEntityOfPage:SITE+'/post/'+p.slug+'.html'},
-   {'@type':'BreadcrumbList',itemListElement:[{'@type':'ListItem',position:1,name:'Home',item:SITE+'/'},{'@type':'ListItem',position:2,name:p.category,item:SITE+'/#latest'},{'@type':'ListItem',position:3,name:p.title,item:SITE+'/post/'+p.slug+'.html'}]}]});
-  const html = head(p.title+' — Newzora', cleanHashes(p.body).slice(0,155), p.image, SITE+'/post/'+p.slug+'.html', 'article', artLD)
-  + `<article><a href="/" style="color:var(--cy)">← All news</a><div style="margin-top:16px"><span class="kicker">${esc(p.category)}</span></div><h1>${esc(p.title)}</h1>
-  <div class="dek">${esc(cleanHashes(ps[0]||''))}</div>
-  <div class="byline"><span><b style="color:var(--txt)">Newzora</b> · ${dstr(p.date)}</span><span class="verified">✓ Cross-checked in 2+ sources</span></div>
-  <img class="poster" src="/${p.image}" alt="${esc(p.title)}"><div class="body">${bodyHtml(p)}</div>
-  <div class="share">${btns}</div>
-  <h2 style="font-size:20px">More in ${esc(p.category)}</h2><div class="more">${more}</div></article>` + foot;
-  fs.writeFileSync(path.join(dist,'post',p.slug+'.html'), html);
+  const raw = ps[1] || ps[0] || '';
+  return esc(cleanDescription(raw, n));
+};
+
+const readingTime = body => {
+  const words = (body || '').trim().split(/\s+/).length;
+  const mins = Math.max(1, Math.round(words / 200));
+  return `${mins} min read`;
+};
+
+const parseSource = body => {
+  const ps = paras({ body });
+  const last = ps[ps.length - 1] || '';
+  const match = last.match(/^Sources?:\s*(.+)$/i);
+  if (match) {
+    return {
+      source: match[1].trim(),
+      bodyParagraphs: ps.slice(0, -1)
+    };
+  }
+  return {
+    source: null,
+    bodyParagraphs: ps
+  };
+};
+
+const renderBody = paragraphs => {
+  return paragraphs.map(x => {
+    if (x.startsWith('### ')) return `<h3>${esc(x.slice(4).trim())}</h3>`;
+    if (x.startsWith('## ')) return `<h2>${esc(x.slice(3).trim())}</h2>`;
+    return `<p>${esc(x)}</p>`;
+  }).join('');
+};
+
+const SITE = 'https://newzora-pied.vercel.app';
+const SOCIALS = {
+  Instagram: 'https://www.instagram.com/new_zora',
+  Threads: 'https://www.threads.com/@new_zora',
+  Facebook: 'https://www.facebook.com/profile.php?id=61596058485989'
+};
+
+const CATEGORIES = [
+  { name: 'AI', slug: 'ai', desc: 'Frontier machine intelligence, neural silicon architectures, model evaluations, and deployment safety.' },
+  { name: 'Gadgets', slug: 'gadgets', desc: 'Hardware engineering, consumer electronics teardowns, precision optics, and physical computing.' },
+  { name: 'Gaming', slug: 'gaming', desc: 'Console platform metrics, real-time rendering pipelines, GPU silicon, and studio disclosures.' },
+  { name: 'Mobile', slug: 'mobile', desc: 'Baseband hardware, operating system architectures, display technologies, and device rollouts.' },
+  { name: 'Cybersecurity', slug: 'cybersecurity', desc: 'CVE vulnerability disclosures, cryptographic verification, exploit mitigations, and defense advisories.' },
+  { name: 'Tech', slug: 'tech', desc: 'Semiconductor manufacturing, supply chain infrastructure, technical leadership, and antitrust proceedings.' }
+];
+
+const BIG = ['apple', 'nvidia', 'google', 'anthropic', 'openai', 'samsung', 'tesla', 'meta', 'microsoft', 'amazon', 'xiaomi', 'huawei', 'sony', 'tsmc', 'carplay'];
+const trending = posts.filter(p => BIG.some(b => (p.title + ' ' + p.body).toLowerCase().includes(b))).slice(0, 5);
+
+// 1.5px Stroke Optical SVG Icons
+const icons = {
+  check: `<svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`,
+  shieldCheck: `<svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>`,
+  search: `<svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>`,
+  clock: `<svg class="ico" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+  arrowLeft: `<svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>`,
+  arrowRight: `<svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>`,
+  activity: `<svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
+  copy: `<svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`,
+  external: `<svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>`,
+  x: `<svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>`,
+  whatsapp: `<svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21"/><path d="M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1a5 5 0 0 0 5 5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0 0 1"/></svg>`,
+  rss: `<svg class="ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>`,
+  layers: `<svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>`
+};
+
+const CSS = `
+:root {
+  --bg: #090a0c;
+  --bg-subtle: #0e1014;
+  --surface: #121418;
+  --surface-raised: #181a20;
+  --surface-hover: #1f222a;
+  --surface-active: #262933;
+
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.16);
+  --border-focus: rgba(255, 255, 255, 0.32);
+
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #71717a;
+  --text-muted: #52525b;
+
+  --accent-action: #f4f4f5;
+  --accent-action-fg: #090a0c;
+
+  --badge-emerald-bg: rgba(16, 185, 129, 0.07);
+  --badge-emerald-border: rgba(52, 211, 153, 0.22);
+  --badge-emerald-fg: #34d399;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --shadow-elevated: 0 10px 28px -6px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 160ms;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+button, input {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.4);
+  outline-offset: 2px;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-feature-settings: 'tnum' on, 'zero' on;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.ico {
+  display: inline-block;
+  vertical-align: -1px;
+  flex-shrink: 0;
+}
+
+/* Micro Header Ticker */
+.strip {
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+}
+.strip .in {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 6px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.15);
+  display: inline-block;
+}
+.strip-source {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.strip-date {
+  margin-left: auto;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+/* Primary Navigation */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(9, 10, 12, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+.hwrap {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.brand-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand-link img {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+}
+.brand-title {
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  line-height: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.brand-title span {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+nav::-webkit-scrollbar {
+  display: none;
+}
+nav a {
+  padding: 6px 11px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  transition: all var(--duration-fast) var(--ease-spring);
+}
+nav a:hover {
+  color: var(--text-primary);
+  background: var(--surface-raised);
+}
+nav a.active {
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.header-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Micro Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all var(--duration-fast) var(--ease-spring);
+  white-space: nowrap;
+}
+.btn:active {
+  transform: scale(0.985);
+}
+.btn.primary {
+  background: var(--accent-action);
+  color: var(--accent-action-fg);
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.btn.primary:hover {
+  background: #e4e4e7;
+}
+.btn.ghost {
+  background: var(--surface);
+  color: var(--text-secondary);
+  border-color: var(--border);
+  box-shadow: var(--shadow-sm);
+}
+.btn.ghost:hover {
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border-color: var(--border-hover);
+}
+
+/* Global Content Wrapper */
+.wrap {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Badges & Micro Labels */
+.badge-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--badge-emerald-bg);
+  border: 1px solid var(--badge-emerald-border);
+  color: var(--badge-emerald-fg);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  letter-spacing: -0.01em;
+}
+.pill-cat {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.time-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-tertiary);
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Section Header Typography */
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 36px 0 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.section-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.section-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  transition: color var(--duration-fast) var(--ease-spring);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.section-link:hover {
+  color: var(--text-primary);
+}
+
+/* Asymmetric Hero Architecture */
+.hero-layout {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 18px;
+  margin-top: 24px;
+}
+.lead-story {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-card);
+  transition: all var(--duration-fast) var(--ease-spring);
+}
+.lead-story:hover {
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-elevated);
+}
+.lead-img-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--bg-subtle);
+  overflow: hidden;
+}
+.lead-img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 400ms var(--ease-spring);
+}
+.lead-story:hover .lead-img-wrap img {
+  transform: scale(1.015);
+}
+.lead-body {
+  padding: 22px 24px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+.lead-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.lead-title {
+  font-size: clamp(24px, 2.5vw, 34px);
+  font-weight: 700;
+  line-height: 1.18;
+  letter-spacing: -0.03em;
+  margin: 0;
+  color: var(--text-primary);
+}
+.lead-excerpt {
+  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 0;
+}
+.lead-footer {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+/* Developing Dispatches Rail */
+.dispatch-rail {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-card);
+}
+.dispatch-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.dispatch-head-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+}
+.dispatch-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+.rail-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: all var(--duration-fast) var(--ease-spring);
+}
+.rail-item:last-child {
+  border-bottom: 0;
+}
+.rail-item:hover {
+  transform: translateX(2px);
+}
+.rail-item:hover h4 {
+  color: #ffffff;
+}
+.rail-thumb {
+  width: 68px;
+  height: 68px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+}
+.rail-details {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.rail-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rail-details h4 {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: color var(--duration-fast) var(--ease-spring);
+}
+
+/* Trending Intelligence Bar */
+.trend-strip {
+  margin: 28px 0 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: var(--shadow-sm);
+}
+.trend-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.trend-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+}
+.trend-card {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  transition: all var(--duration-fast) var(--ease-spring);
+}
+.trend-card:hover {
+  background: var(--surface-raised);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+.trend-rank {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.trend-title {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Editorial Category Magazine Grid */
+.mag-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 16px;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--duration-fast) var(--ease-spring);
+}
+.card:hover {
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-card);
+  transform: translateY(-1px);
+}
+.card-img-wrap {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  background: var(--bg-subtle);
+  overflow: hidden;
+}
+.card-img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 300ms var(--ease-spring);
+}
+.card:hover .card-img-wrap img {
+  transform: scale(1.02);
+}
+.card-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+.card.featured .card-title {
+  font-size: 19px;
+  line-height: 1.25;
+}
+.card-excerpt {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.mag-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.card-mini {
+  display: flex;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--duration-fast) var(--ease-spring);
+}
+.card-mini:hover {
+  border-color: var(--border-hover);
+  background: var(--surface-raised);
+}
+.card-mini img {
+  width: 68px;
+  height: 68px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid var(--border-subtle);
+}
+.card-mini-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.card-mini-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* The Live Wire / Interactive Dispatch Stream */
+.wire-section {
+  margin: 44px 0 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px;
+  box-shadow: var(--shadow-card);
+}
+.wire-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.wire-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.fchip {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-spring);
+}
+.fchip:hover {
+  color: var(--text-primary);
+  background: var(--surface-raised);
+  border-color: var(--border-hover);
+}
+.fchip.on {
+  color: var(--accent-action-fg);
+  background: var(--accent-action);
+  border-color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+.search-input {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 7px 34px 7px 32px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  width: 240px;
+  transition: all var(--duration-fast) var(--ease-spring);
+}
+.search-input::placeholder {
+  color: var(--text-tertiary);
+}
+.search-input:focus {
+  border-color: var(--border-focus);
+  background: var(--surface-raised);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06);
+}
+.search-badge {
+  position: absolute;
+  right: 10px;
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
+.wire-stream {
+  display: flex;
+  flex-direction: column;
+}
+.wire-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  transition: all var(--duration-fast) var(--ease-spring);
+}
+.wire-row:last-child {
+  border-bottom: 0;
+}
+.wire-row:hover {
+  background: var(--surface-raised);
+}
+.wire-thumb {
+  width: 78px;
+  height: 78px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+}
+.wire-details {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  flex: 1;
+}
+.wire-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+.wire-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.empty-state {
+  display: none;
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+.empty-icon {
+  margin: 0 auto 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+}
+.empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+}
+.empty-desc {
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+  margin: 0;
+}
+
+/* Trust & Sourcing Architecture */
+.trust-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin: 40px 0 20px;
+}
+.trust-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.trust-index {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  letter-spacing: 0.04em;
+}
+.trust-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+.trust-text {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+/* Article Page Layout */
+article {
+  max-width: 820px;
+  margin: 20px auto 48px;
+  padding: 0 20px;
+}
+.bc {
+  margin: 12px 0 16px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+.bc ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  gap: 8px;
+}
+.bc li + li::before {
+  content: '/';
+  margin-right: 8px;
+  color: var(--border-hover);
+  font-size: 11px;
+}
+.bc a {
+  color: var(--text-tertiary);
+  transition: color var(--duration-fast) var(--ease-spring);
+}
+.bc a:hover {
+  color: var(--text-primary);
+}
+.bc span[itemprop="name"] {
+  color: var(--text-secondary);
+}
+
+article h1 {
+  font-size: clamp(26px, 3.8vw, 42px);
+  font-weight: 700;
+  line-height: 1.16;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  margin: 10px 0 14px;
+}
+.dek {
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  margin: 0 0 18px;
+  font-weight: 400;
+}
+.byline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  margin: 18px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+  flex-wrap: wrap;
+}
+.byline strong {
+  color: var(--text-primary);
+}
+.poster {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  object-fit: cover;
+  box-shadow: var(--shadow-card);
+  margin: 18px 0 28px;
+}
+.body p {
+  font-size: 16.5px;
+  line-height: 1.78;
+  color: #d4d4d8;
+  margin: 20px 0;
+}
+.body h2 {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+  color: var(--text-primary);
+  margin: 40px 0 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.body h3 {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+  margin: 28px 0 10px;
+}
+
+/* Sourcing Callout */
+.source-box {
+  margin: 32px 0 24px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--badge-emerald-fg);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.source-tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--badge-emerald-fg);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.source-text {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Share & Post Navigation */
+.share-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+  margin: 28px 0 16px;
+}
+.share-label {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-right: 6px;
+}
+.post-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 24px 0 40px;
+}
+.pnav-link {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--duration-fast) var(--ease-spring);
+}
+.pnav-link:hover {
+  background: var(--surface-raised);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+.pnav-link.next {
+  text-align: right;
+}
+.pnav-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.pnav-link.next .pnav-label {
+  justify-content: flex-end;
+}
+.pnav-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+}
+.more-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+/* Category Hub & Static Pages */
+.cat-hero {
+  margin: 24px 0 32px;
+  padding: 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-card);
+}
+.cat-hero h1 {
+  font-size: clamp(26px, 3.5vw, 38px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: 6px 0 10px;
+  color: var(--text-primary);
+}
+.cat-hero p {
+  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0;
+  max-width: 680px;
+}
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin: 24px 0 44px;
+}
+
+.static-page {
+  max-width: 820px;
+  margin: 24px auto 64px;
+  padding: 0 20px;
+}
+.static-page h1 {
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: 12px 0 16px;
+  color: var(--text-primary);
+}
+.static-page h2 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 36px 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+.static-page p {
+  font-size: 16px;
+  line-height: 1.75;
+  color: #d4d4d8;
+  margin: 14px 0;
+}
+.static-page ul {
+  padding-left: 20px;
+  margin: 16px 0;
+  color: #d4d4d8;
+  line-height: 1.75;
+  font-size: 15.5px;
+}
+.static-page li {
+  margin: 8px 0;
+}
+.static-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin: 24px 0;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Structured Global Footer */
+footer {
+  border-top: 1px solid var(--border);
+  background: var(--bg-subtle);
+  margin-top: 48px;
+  font-size: 13px;
+  color: var(--text-tertiary);
+}
+.fwrap {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 36px 20px 28px;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1fr;
+  gap: 32px;
+}
+.fcol-brand p {
+  line-height: 1.6;
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin: 10px 0 0;
+  max-width: 320px;
+}
+footer h5 {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 14px;
+}
+footer ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+footer a {
+  color: var(--text-secondary);
+  transition: color var(--duration-fast) var(--ease-spring);
+}
+footer a:hover {
+  color: var(--text-primary);
+}
+.fbot {
+  border-top: 1px solid var(--border-subtle);
+  padding: 16px 20px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 980px) {
+  .hero-layout {
+    grid-template-columns: 1fr;
+  }
+  .mag-grid {
+    grid-template-columns: 1fr;
+  }
+  .fwrap {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 640px) {
+  .post-nav {
+    grid-template-columns: 1fr;
+  }
+  .pnav-link.next {
+    text-align: left;
+  }
+  .pnav-link.next .pnav-label {
+    justify-content: flex-start;
+  }
+  .fwrap {
+    grid-template-columns: 1fr;
+  }
+  .wire-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .search-input {
+    width: 100%;
+  }
+}
+`;
+
+const head = (title, desc, img, url, ogt = 'article', ld = '', activeNav = '') => {
+  const cleanDesc = cleanDescription(desc, 155);
+  const imgUrl = img.startsWith('http') ? img : `${SITE}/${img.replace(/^\/+/, '')}`;
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(title)}</title>
+<meta name="description" content="${esc(cleanDesc)}">
+<link rel="canonical" href="${url}">
+<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<meta name="google-site-verification" content="google64f3ab4c81877d0d">
+<meta name="author" content="Newzora">
+<meta name="publisher" content="Newzora">
+<meta name="theme-color" content="#090a0c">
+<meta property="og:site_name" content="Newzora">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="${esc(title)}">
+<meta property="og:description" content="${esc(cleanDesc)}">
+<meta property="og:url" content="${url}">
+<meta property="og:type" content="${ogt}">
+<meta property="og:image" content="${imgUrl}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="675">
+<meta property="og:image:alt" content="${esc(title)}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@new_zora">
+<meta name="twitter:creator" content="@new_zora">
+<meta name="twitter:title" content="${esc(title)}">
+<meta name="twitter:description" content="${esc(cleanDesc)}">
+<meta name="twitter:image" content="${imgUrl}">
+<link rel="alternate" type="application/rss+xml" title="Newzora RSS Feed" href="${SITE}/feed.xml">
+<link rel="icon" type="image/jpeg" href="/img/logo.jpg">
+<link rel="apple-touch-icon" href="/img/logo.jpg">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+${ld ? `<script type="application/ld+json">${ld}</script>` : ''}
+<style>${CSS}</style></head><body>
+<div class="strip">
+  <div class="in">
+    <span class="live-dot" aria-hidden="true"></span>
+    <span class="strip-source">Independent Technical Journalism</span>
+    <span class="mono" style="color:var(--text-tertiary)">· Two-Source Corroborated</span>
+    <span class="strip-date">${dstr(posts[0].date)}</span>
+  </div>
+</div>
+<header>
+  <div class="hwrap">
+    <a class="brand-link" href="/" aria-label="Newzora Homepage">
+      <img src="/img/logo.jpg" alt="Newzora Emblem" width="30" height="30">
+      <div class="brand-title">NEWZORA <span>DISPATCH</span></div>
+    </a>
+    <nav aria-label="Primary Navigation">
+      ${CATEGORIES.map(c => `<a href="/category/${c.slug}.html"${activeNav === c.name ? ' class="active"' : ''}>${c.name}</a>`).join('')}
+    </nav>
+    <div class="header-actions">
+      <a class="btn ghost mono" href="/#latest" aria-label="Jump to search">${icons.search}<span>Search</span></a>
+      <a class="btn primary" href="${SOCIALS.Instagram}" target="_blank" rel="noopener">Follow</a>
+    </div>
+  </div>
+</header>`;
+};
+
+const foot = `
+<footer>
+  <div class="fwrap">
+    <div class="fcol-brand">
+      <div class="brand-title" style="font-size:15px">NEWZORA <span>DISPATCH</span></div>
+      <p>Continuous technical journalism across artificial intelligence, semiconductor silicon, and consumer systems. Every dispatch is corroborated across two or more primary sources prior to transmission.</p>
+    </div>
+    <div>
+      <h5>Coverage Desks</h5>
+      <ul>
+        ${CATEGORIES.map(c => `<li><a href="/category/${c.slug}.html">${c.name}</a></li>`).join('')}
+      </ul>
+    </div>
+    <div>
+      <h5>Editorial Standards</h5>
+      <ul>
+        <li><a href="/about.html">About Newzora</a></li>
+        <li><a href="/editorial-policy.html">Editorial &amp; Verification Policy</a></li>
+        <li><a href="/contact.html">Newsroom Contacts &amp; Tips</a></li>
+        <li><a href="/feed.xml">RSS Syndication Feed</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5>Syndication &amp; Networks</h5>
+      <ul>
+        <li><a href="${SOCIALS.Instagram}" target="_blank" rel="noopener">Instagram (@new_zora)</a></li>
+        <li><a href="${SOCIALS.Threads}" target="_blank" rel="noopener">Threads (@new_zora)</a></li>
+        <li><a href="${SOCIALS.Facebook}" target="_blank" rel="noopener">Facebook Page</a></li>
+        <li><a href="/sitemap.xml">XML Sitemap</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="fbot">
+    © ${new Date().getFullYear()} Newzora Technical Media. All dispatches verified through 2+ independent regulatory, corporate, or primary industry sources.
+  </div>
+</footer>
+</body></html>`;
+
+// Reusable card builders
+const card = (p, isFeatured = false) => `
+<a class="card${isFeatured ? ' featured' : ''}" href="/post/${p.slug}.html">
+  <div class="card-img-wrap">
+    <img loading="lazy" src="/${p.image}" alt="${esc(p.title)}" width="800" height="500">
+  </div>
+  <div class="card-body">
+    <div class="card-meta">
+      <span class="pill-cat">${esc(p.category)}</span>
+      <span class="time-tag">${icons.clock} ${dstr(p.date)}</span>
+    </div>
+    <h3 class="card-title">${esc(p.title)}</h3>
+    ${isFeatured ? `<p class="card-excerpt">${excerpt(p, 180)}…</p>` : ''}
+  </div>
+</a>`;
+
+const cardMini = p => `
+<a class="card-mini" href="/post/${p.slug}.html">
+  <img loading="lazy" src="/${p.image}" alt="${esc(p.title)}" width="68" height="68">
+  <div class="card-mini-body">
+    <div class="card-meta">
+      <span class="pill-cat" style="font-size:10px">${esc(p.category)}</span>
+      <span class="time-tag" style="font-size:10.5px">${dstr(p.date)}</span>
+    </div>
+    <h4 class="card-mini-title">${esc(p.title)}</h4>
+  </div>
+</a>`;
+
+const railItem = p => `
+<a class="rail-item" href="/post/${p.slug}.html">
+  <img loading="lazy" src="/${p.image}" alt="${esc(p.title)}" class="rail-thumb" width="68" height="68">
+  <div class="rail-details">
+    <div class="rail-meta">
+      <span class="pill-cat" style="font-size:10px">${esc(p.category)}</span>
+      <span class="time-tag" style="font-size:10.5px">${dstr(p.date)}</span>
+    </div>
+    <h4>${esc(p.title)}</h4>
+  </div>
+</a>`;
+
+// 1. Homepage Construction
+const hero = posts[0];
+const rail = posts.slice(1, 6);
+
+const homeLD = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'NewsMediaOrganization',
+      name: 'Newzora',
+      url: SITE + '/',
+      logo: {
+        '@type': 'ImageObject',
+        url: SITE + '/img/logo.jpg',
+        width: 512,
+        height: 512
+      },
+      sameAs: Object.values(SOCIALS),
+      description: 'Verified technical news and dispatches, corroborated across 2+ primary industry sources.',
+      publishingPrinciples: SITE + '/editorial-policy.html',
+      ethicsPolicy: SITE + '/editorial-policy.html',
+      correctionsPolicy: SITE + '/editorial-policy.html',
+      contactPoint: {
+        '@type': 'ContactPoint',
+        contactType: 'editorial',
+        url: SITE + '/contact.html'
+      }
+    },
+    {
+      '@type': 'WebSite',
+      name: 'Newzora',
+      url: SITE + '/',
+      description: 'Verified technical news, as it breaks.',
+      publisher: {
+        '@type': 'Organization',
+        name: 'Newzora'
+      },
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: {
+          '@type': 'EntryPoint',
+          urlTemplate: SITE + '/#latest?q={search_term_string}'
+        },
+        'query-input': 'required name=search_term_string'
+      }
+    }
+  ]
 });
-fs.writeFileSync(path.join(dist,'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${SITE}/</loc></url>${posts.map(p=>`<url><loc>${SITE}/post/${p.slug}.html</loc><lastmod>${p.date}</lastmod></url>`).join('')}</urlset>`);
-fs.writeFileSync(path.join(dist,'robots.txt'), `User-agent: *\nAllow: /\nSitemap: ${SITE}/sitemap.xml\n`);
-console.log('built v2:', posts.length, 'articles');
+
+let indexHtml = head(
+  'Newzora — Verified Tech News, As It Breaks',
+  'Your daily tech briefing: AI, gadgets, gaming and internet news, cross-checked in 2+ sources. No rumours, just verified news.',
+  hero.image,
+  SITE + '/',
+  'website',
+  homeLD
+)
++ `<main><div class="wrap">
+  <!-- Asymmetric Editorial Hero -->
+  <section class="hero-layout" aria-label="Featured Story and Latest Dispatches">
+    <a class="lead-story" href="/post/${hero.slug}.html">
+      <div class="lead-img-wrap">
+        <img src="/${hero.image}" alt="${esc(hero.title)}" width="1200" height="675" fetchpriority="high">
+      </div>
+      <div class="lead-body">
+        <div class="lead-meta">
+          <span class="pill-cat">${esc(hero.category)}</span>
+          <span class="badge-verified">${icons.shieldCheck} 2-Source Verified</span>
+          <span class="time-tag">${icons.clock} ${dstr(hero.date)}</span>
+        </div>
+        <h1 class="lead-title">${esc(hero.title)}</h1>
+        <p class="lead-excerpt">${excerpt(hero, 220)}…</p>
+        <div class="lead-footer">
+          <span>By Newzora Technical Desk</span>
+          <span class="mono">${readingTime(hero.body)}</span>
+        </div>
+      </div>
+    </a>
+    <aside class="dispatch-rail" aria-label="Developing Dispatches">
+      <div class="dispatch-head">
+        <h2 class="dispatch-head-title">${icons.activity} Developing Dispatches</h2>
+        <span class="dispatch-count mono">[${rail.length} STORIES]</span>
+      </div>
+      <div class="rail-items">
+        ${rail.map(railItem).join('')}
+      </div>
+    </aside>
+  </section>
+
+  <!-- Trending Intelligence Strip -->
+  <section class="trend-strip" aria-label="Trending Coverage">
+    <div class="trend-header">${icons.activity} Trending Intelligence</div>
+    <div class="trend-grid">
+      ${trending.map((p, i) => `
+      <a class="trend-card" href="/post/${p.slug}.html">
+        <span class="trend-rank mono">0${i + 1}</span>
+        <h4 class="trend-title">${esc(p.title)}</h4>
+      </a>`).join('')}
+    </div>
+  </section>`;
+
+// Category sections with editorial magazine layout
+const catOrder = ['AI', 'Gadgets', 'Gaming', 'Mobile', 'Cybersecurity', 'Tech'];
+for (const c of catOrder) {
+  const cp = posts.filter(p => p.category === c);
+  if (cp.length < 3) continue;
+  indexHtml += `
+  <section class="sec" aria-label="${esc(c)} Coverage">
+    <div class="section-head">
+      <h2 class="section-title"><span class="pill-cat">${esc(c)}</span> Desk Briefing</h2>
+      <a class="section-link" href="/category/${c.toLowerCase()}.html">Explore ${esc(c)} ${icons.arrowRight}</a>
+    </div>
+    <div class="mag-grid">
+      ${card(cp[0], true)}
+      <div class="mag-stack">
+        ${cp.slice(1, 3).map(cardMini).join('')}
+      </div>
+      <div class="mag-stack">
+        ${cp.slice(3, 5).map(cardMini).join('')}
+      </div>
+    </div>
+  </section>`;
+}
+
+// The Interactive Wire / Feed Section
+indexHtml += `
+  <section class="wire-section" id="latest" aria-label="Search and Dispatch Archive">
+    <div class="wire-head">
+      <div class="wire-filters">
+        ${['All', ...new Set(posts.map(p => p.category))].map((c, i) => `
+        <button class="fchip${i === 0 ? ' on' : ''}" data-f="${esc(c)}">${esc(c)}</button>`).join('')}
+      </div>
+      <div class="search-box">
+        <span class="search-icon">${icons.search}</span>
+        <input id="q" class="search-input" type="search" placeholder="Filter dispatches…" aria-label="Filter tech news">
+        <span class="search-badge">/</span>
+      </div>
+    </div>
+    <div class="wire-stream">
+      ${posts.map(p => `
+      <a class="wire-row" href="/post/${p.slug}.html" data-cat="${esc(p.category)}" data-t="${esc((p.title + ' ' + (paras(p)[0] || '')).toLowerCase())}">
+        <img loading="lazy" src="/${p.image}" alt="${esc(p.title)}" class="wire-thumb" width="78" height="78">
+        <div class="wire-details">
+          <div class="wire-meta">
+            <span class="pill-cat" style="font-size:10px">${esc(p.category)}</span>
+            <span class="badge-verified" style="font-size:10px;padding:2px 6px">${icons.check} Verified</span>
+            <span class="time-tag" style="font-size:11px">${icons.clock} ${dstr(p.date)}</span>
+          </div>
+          <h3 class="wire-title">${esc(p.title)}</h3>
+        </div>
+      </a>`).join('')}
+    </div>
+    <div id="no-res" class="empty-state">
+      <div class="empty-icon">${icons.search}</div>
+      <p class="empty-title">No dispatches found</p>
+      <p class="empty-desc">No published stories matched your query. Try a different keyword or category.</p>
+    </div>
+  </section>
+
+  <!-- Editorial Pillars -->
+  <section class="trust-grid" aria-label="Editorial Standards">
+    <div class="trust-card">
+      <span class="trust-index">PILLAR 01</span>
+      <h3 class="trust-title">Multi-Source Corroboration</h3>
+      <p class="trust-text">Every story begins as an engineering disclosure, benchmark or filing. No dispatch runs without corroboration across two or more primary documents or verified disclosures.</p>
+    </div>
+    <div class="trust-card">
+      <span class="trust-index">PILLAR 02</span>
+      <h3 class="trust-title">Authentic Media Integrity</h3>
+      <p class="trust-text">Zero synthetic, hallucinated, or unverified imagery. Every poster visual is backed by actual hardware captures, public filings, or confirmed manufacturer engineering documentation.</p>
+    </div>
+    <div class="trust-card">
+      <span class="trust-index">PILLAR 03</span>
+      <h3 class="trust-title">Independent Editorial Stance</h3>
+      <p class="trust-text">No commercial preconditions, paid review placement, or access-trading. Dispatches are published for technical professionals who require signal over hype.</p>
+    </div>
+  </section>
+</div></main>
+<script>
+(function() {
+  const chips = Array.from(document.querySelectorAll('.fchip'));
+  const rows = Array.from(document.querySelectorAll('.wire-row'));
+  const q = document.getElementById('q');
+  const noRes = document.getElementById('no-res');
+  let currentCat = 'All';
+
+  function applyFilter() {
+    const query = (q.value || '').trim().toLowerCase();
+    let count = 0;
+    rows.forEach(r => {
+      const matchCat = currentCat === 'All' || r.dataset.cat === currentCat;
+      const matchQuery = !query || r.dataset.t.includes(query);
+      const visible = matchCat && matchQuery;
+      r.style.display = visible ? '' : 'none';
+      if (visible) count++;
+    });
+    if (noRes) noRes.style.display = count === 0 ? 'block' : 'none';
+  }
+
+  chips.forEach(b => {
+    b.addEventListener('click', () => {
+      chips.forEach(c => c.classList.remove('on'));
+      b.classList.add('on');
+      currentCat = b.dataset.f;
+      applyFilter();
+    });
+  });
+
+  if (q) {
+    q.addEventListener('input', applyFilter);
+    document.addEventListener('keydown', e => {
+      if (e.key === '/' && document.activeElement !== q) {
+        e.preventDefault();
+        q.focus();
+      }
+    });
+  }
+})();
+</script>`
++ foot;
+
+fs.writeFileSync(path.join(dist, 'index.html'), indexHtml);
+
+// 2. Individual Article Pages
+posts.forEach((p, i) => {
+  const { source, bodyParagraphs } = parseSource(p.body);
+  const externalLinks = Object.entries(p.links || {}).map(([k, u]) => `
+    <a class="btn ghost" href="${u}" target="_blank" rel="noopener">
+      ${icons.external} <span>${k[0].toUpperCase() + k.slice(1)}</span>
+    </a>
+  `).join('');
+
+  const sameCat = posts.filter(x => x.category === p.category && x.id !== p.id).slice(0, 3);
+  const more = (sameCat.length ? sameCat : posts.filter(x => x.id !== p.id).slice(0, 3)).map(x => card(x)).join('');
+  const catSlug = p.category.toLowerCase();
+  const desc = cleanDescription(p.body, 155);
+
+  const prevPost = posts[i + 1] || null; // chronologically older
+  const nextPost = posts[i - 1] || null; // chronologically newer
+
+  const artLD = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'NewsArticle',
+        headline: p.title,
+        description: desc,
+        image: [`${SITE}/${p.image}`],
+        datePublished: dstrIso(p.date),
+        dateModified: dstrIso(p.date),
+        inLanguage: 'en-US',
+        isAccessibleForFree: 'True',
+        articleSection: p.category,
+        author: {
+          '@type': 'Organization',
+          name: 'Newzora',
+          url: SITE + '/'
+        },
+        publisher: {
+          '@type': 'Organization',
+          name: 'Newzora',
+          url: SITE + '/',
+          logo: {
+            '@type': 'ImageObject',
+            url: SITE + '/img/logo.jpg',
+            width: 512,
+            height: 512
+          }
+        },
+        mainEntityOfPage: {
+          '@type': 'WebPage',
+          '@id': `${SITE}/post/${p.slug}.html`
+        }
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE}/` },
+          { '@type': 'ListItem', position: 2, name: p.category, item: `${SITE}/category/${catSlug}.html` },
+          { '@type': 'ListItem', position: 3, name: p.title, item: `${SITE}/post/${p.slug}.html` }
+        ]
+      }
+    ]
+  });
+
+  const sourceBoxHtml = source
+    ? `<div class="source-box">
+         <span class="source-tag">${icons.shieldCheck} Corroborated Primary Sources</span>
+         <span class="source-text">${esc(source)}</span>
+       </div>`
+    : `<div class="source-box">
+         <span class="source-tag">${icons.shieldCheck} Corroboration Standard</span>
+         <span class="source-text">Corroborated across two or more primary regulatory filings, corporate releases, or investigative industry dispatches prior to publication.</span>
+       </div>`;
+
+  const shareUrl = `${SITE}/post/${p.slug}.html`;
+  const shareText = encodeURIComponent(p.title);
+  const encUrl = encodeURIComponent(shareUrl);
+  const twitterShare = `https://twitter.com/intent/tweet?text=${shareText}&url=${encUrl}`;
+  const waShare = `https://api.whatsapp.com/send?text=${shareText}%20${encUrl}`;
+
+  const shareButtonsHtml = `
+  <div class="share-bar">
+    <span class="share-label">Transmit:</span>
+    <a class="btn ghost" href="${twitterShare}" target="_blank" rel="noopener">${icons.x} <span>X</span></a>
+    <a class="btn ghost" href="${waShare}" target="_blank" rel="noopener">${icons.whatsapp} <span>WhatsApp</span></a>
+    <button class="btn ghost copy-btn" onclick="navigator.clipboard.writeText(window.location.href).then(()=>{const s=this.querySelector('.copy-txt');s.textContent='Link Copied';setTimeout(()=>s.textContent='Copy Link',2000)})">
+      ${icons.copy} <span class="copy-txt">Copy Link</span>
+    </button>
+    ${externalLinks}
+  </div>`;
+
+  const postNavHtml = `
+  <nav class="post-nav" aria-label="Story Navigation">
+    ${prevPost
+      ? `<a class="pnav-link prev" href="/post/${prevPost.slug}.html">
+           <span class="pnav-label">${icons.arrowLeft} Previous Dispatch</span>
+           <span class="pnav-title">${esc(prevPost.title)}</span>
+         </a>`
+      : '<div></div>'}
+    ${nextPost
+      ? `<a class="pnav-link next" href="/post/${nextPost.slug}.html">
+           <span class="pnav-label">Next Dispatch ${icons.arrowRight}</span>
+           <span class="pnav-title">${esc(nextPost.title)}</span>
+         </a>`
+      : '<div></div>'}
+  </nav>`;
+
+  const postHtml = head(
+    `${p.title} — Newzora`,
+    desc,
+    p.image,
+    `${SITE}/post/${p.slug}.html`,
+    'article',
+    artLD,
+    p.category
+  )
+  + `<main><article>
+    <nav class="bc" aria-label="Breadcrumb">
+      <ol itemscope itemtype="https://schema.org/BreadcrumbList">
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+          <a itemprop="item" href="/"><span itemprop="name">Home</span></a>
+          <meta itemprop="position" content="1">
+        </li>
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+          <a itemprop="item" href="/category/${catSlug}.html"><span itemprop="name">${esc(p.category)}</span></a>
+          <meta itemprop="position" content="2">
+        </li>
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+          <span itemprop="name">${esc(p.title)}</span>
+          <meta itemprop="position" content="3">
+        </li>
+      </ol>
+    </nav>
+
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span class="pill-cat">${esc(p.category)}</span>
+      <span class="badge-verified">${icons.shieldCheck} 2-Source Verified</span>
+    </div>
+
+    <h1>${esc(p.title)}</h1>
+    <div class="dek">${esc(cleanDescription(bodyParagraphs[0] || ''))}</div>
+
+    <div class="byline">
+      <span><strong>Newzora Technical Desk</strong></span>
+      <span class="mono">· ${dstr(p.date)}</span>
+      <span class="time-tag">· ${icons.clock} ${readingTime(p.body)}</span>
+      <span class="badge-verified" style="margin-left:auto">${icons.check} Corroborated</span>
+    </div>
+
+    <img class="poster" src="/${p.image}" alt="${esc(p.title)}" width="1200" height="675" fetchpriority="high" decoding="async">
+
+    <div class="body">
+      ${renderBody(bodyParagraphs.slice(1))}
+    </div>
+
+    ${sourceBoxHtml}
+    ${shareButtonsHtml}
+    ${postNavHtml}
+
+    <div class="section-head" style="margin-top:40px">
+      <h2 class="section-title"><span class="pill-cat">${esc(p.category)}</span> Related Dispatches</h2>
+      <a class="section-link" href="/category/${catSlug}.html">All ${esc(p.category)} ${icons.arrowRight}</a>
+    </div>
+    <div class="more-grid">${more}</div>
+  </article></main>`
+  + foot;
+
+  fs.writeFileSync(path.join(dist, 'post', `${p.slug}.html`), postHtml);
+});
+
+// 3. Category Hub Pages
+CATEGORIES.forEach(cat => {
+  const catPosts = posts.filter(p => p.category.toLowerCase() === cat.slug);
+  const catTitle = `${cat.name} Tech News, Updates & Analysis — Newzora`;
+  const catUrl = `${SITE}/category/${cat.slug}.html`;
+
+  const catLD = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'CollectionPage',
+        name: catTitle,
+        url: catUrl,
+        description: cat.desc,
+        breadcrumb: {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: 'Home', item: `${SITE}/` },
+            { '@type': 'ListItem', position: 2, name: cat.name, item: catUrl }
+          ]
+        }
+      },
+      {
+        '@type': 'ItemList',
+        itemListElement: catPosts.slice(0, 10).map((p, idx) => ({
+          '@type': 'ListItem',
+          position: idx + 1,
+          url: `${SITE}/post/${p.slug}.html`,
+          name: p.title
+        }))
+      }
+    ]
+  });
+
+  const catImage = catPosts[0] ? catPosts[0].image : 'img/logo.jpg';
+
+  let catHtml = head(catTitle, cat.desc, catImage, catUrl, 'website', catLD, cat.name)
+  + `<main><div class="wrap">
+    <nav class="bc" aria-label="Breadcrumb">
+      <ol itemscope itemtype="https://schema.org/BreadcrumbList">
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+          <a itemprop="item" href="/"><span itemprop="name">Home</span></a>
+          <meta itemprop="position" content="1">
+        </li>
+        <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+          <span itemprop="name">${esc(cat.name)}</span>
+          <meta itemprop="position" content="2">
+        </li>
+      </ol>
+    </nav>
+
+    <div class="cat-hero">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span class="pill-cat">Desk Archive</span>
+        <span class="mono" style="font-size:11.5px;color:var(--text-tertiary)">[${catPosts.length} DISPATCHES]</span>
+      </div>
+      <h1>${esc(cat.name)} Intelligence</h1>
+      <p>${esc(cat.desc)} Every development verified across primary source documentation and enterprise filings.</p>
+    </div>
+
+    <div class="cat-grid">
+      ${catPosts.map((p, idx) => card(p, idx === 0)).join('')}
+    </div>
+  </div></main>`
+  + foot;
+
+  fs.writeFileSync(path.join(dist, 'category', `${cat.slug}.html`), catHtml);
+});
+
+// 4. E-E-A-T Transparency Hubs (About, Editorial Policy, Contact)
+const aboutLD = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'AboutPage',
+  name: 'About Newzora — Verified Tech Journalism',
+  url: `${SITE}/about.html`,
+  description: 'How Newzora independently corroborates breaking technology, AI, hardware, and cybersecurity dispatches.'
+});
+
+const aboutHtml = head(
+  'About Newzora — Verified Tech Journalism & Standards',
+  'Why Newzora exists: verified tech news without rumours, clickbait, or unverified leaks. Cross-checked in 2+ independent sources.',
+  'img/logo.jpg',
+  `${SITE}/about.html`,
+  'website',
+  aboutLD
+)
++ `<main><div class="static-page">
+  <nav class="bc" aria-label="Breadcrumb">
+    <ol itemscope itemtype="https://schema.org/BreadcrumbList">
+      <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><a itemprop="item" href="/"><span itemprop="name">Home</span></a><meta itemprop="position" content="1"></li>
+      <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><span itemprop="name">About</span><meta itemprop="position" content="2"></li>
+    </ol>
+  </nav>
+
+  <span class="pill-cat">Institutional Mandate</span>
+  <h1>About Newzora</h1>
+  <p class="dek">High-signal technical journalism engineered for engineers, founders, and technical professionals.</p>
+
+  <div class="static-card">
+    <h2 style="margin-top:0">The Two-Source Corroboration Rule</h2>
+    <p>In digital technology reporting, unverified social leaks and recycled press PR frequently mask reality. Newzora operates under an absolute standard: <b>no dispatch is published without corroboration across two or more independent, verified primary sources</b>.</p>
+    <p>Eligible validation materials include direct SEC or regulatory submissions, patent disclosures, public code commits, hardware teardowns, corporate financial filings, and vetted primary reporting from established institutional press desks (Reuters, Bloomberg, AP, Financial Times).</p>
+  </div>
+
+  <h2>Coverage Desks</h2>
+  <ul>
+    <li><b>Artificial Intelligence:</b> Frontier model training runs, compute clusters, safety audits, and research releases.</li>
+    <li><b>Semiconductor Silicon &amp; Hardware:</b> Architecture designs, fab capacity, packaging technologies, and consumer hardware.</li>
+    <li><b>Systems &amp; Cybersecurity:</b> Zero-day disclosures, CVE analysis, cryptographic verification, and operational infrastructure vulnerabilities.</li>
+    <li><b>Mobile Architecture:</b> Cellular basebands, microcode architectures, and operating system updates.</li>
+  </ul>
+
+  <h2>Media Authenticity Standard</h2>
+  <p>Newzora dispatches never employ synthetic or AI-generated product mockups. All visual representations are verified manufacturer assets, official filings, or documented hardware photographs.</p>
+</div></main>`
++ foot;
+
+fs.writeFileSync(path.join(dist, 'about.html'), aboutHtml);
+
+// Editorial Policy Page
+const policyLD = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  name: 'Newzora Editorial Policy & Fact-Checking Guidelines',
+  url: `${SITE}/editorial-policy.html`,
+  description: 'Editorial verification rules, correction protocols, and independence standards observed by Newzora.'
+});
+
+const policyHtml = head(
+  'Editorial Policy, Fact-Checking & Corrections — Newzora',
+  'Our journalistic standards: verification protocols, anonymous source handling, error corrections, and ethical boundaries.',
+  'img/logo.jpg',
+  `${SITE}/editorial-policy.html`,
+  'website',
+  policyLD
+)
++ `<main><div class="static-page">
+  <nav class="bc" aria-label="Breadcrumb">
+    <ol itemscope itemtype="https://schema.org/BreadcrumbList">
+      <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><a itemprop="item" href="/"><span itemprop="name">Home</span></a><meta itemprop="position" content="1"></li>
+      <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><span itemprop="name">Editorial Policy</span><meta itemprop="position" content="2"></li>
+    </ol>
+  </nav>
+
+  <span class="pill-cat">Ethics &amp; Governance</span>
+  <h1>Editorial &amp; Verification Policy</h1>
+  <p class="dek">Methodologies governing research, verification, attribution, and corrections.</p>
+
+  <h2>1. Source Corroboration</h2>
+  <p>We do not publish single-source leaks, anonymous forum threads, or promotional hype. Clearance requires:</p>
+  <ul>
+    <li>Documentary or cryptographic validation (e.g. verified commit, FCC/SEC record, recorded live demo).</li>
+    <li>Corroborating statements or reports from recognized independent entities.</li>
+    <li>Explicit citation of primary sources at the base of every story.</li>
+  </ul>
+
+  <h2>2. Transparent Corrections Protocol</h2>
+  <p>When factual inaccuracies arise, we correct them immediately. Updated dispatches display a transparent revision note with timestamp and details of the clarification.</p>
+
+  <h2>3. Independence &amp; Integrity</h2>
+  <p>Newzora maintains absolute financial and editorial separation from hardware manufacturers and tech vendors. We accept zero sponsored articles, paid product reviews, or access concessions with editorial preconditions.</p>
+</div></main>`
++ foot;
+
+fs.writeFileSync(path.join(dist, 'editorial-policy.html'), policyHtml);
+
+// Contact Page
+const contactLD = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'ContactPage',
+  name: 'Contact Newzora — News Tips & Inquiries',
+  url: `${SITE}/contact.html`,
+  description: 'Submit technical tips, research documentation, or inquiries to the Newzora editorial desk.'
+});
+
+const contactHtml = head(
+  'Contact Us & News Tips — Newzora',
+  'Contact the Newzora news desk. Send press releases, verified tips, or request factual corrections.',
+  'img/logo.jpg',
+  `${SITE}/contact.html`,
+  'website',
+  contactLD
+)
++ `<main><div class="static-page">
+  <nav class="bc" aria-label="Breadcrumb">
+    <ol itemscope itemtype="https://schema.org/BreadcrumbList">
+      <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><a itemprop="item" href="/"><span itemprop="name">Home</span></a><meta itemprop="position" content="1"></li>
+      <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><span itemprop="name">Contact</span><meta itemprop="position" content="2"></li>
+    </ol>
+  </nav>
+
+  <span class="pill-cat">Newsroom Desks</span>
+  <h1>Contact &amp; Transmissions</h1>
+  <p class="dek">Submit verified leads, engineering documents, or correction notices to the desk.</p>
+
+  <div class="static-card">
+    <h2 style="margin-top:0">Technical Tips &amp; Documents</h2>
+    <p>We prioritize transmissions substantiated by logs, filings, hardware photographs, or source documentation.</p>
+    <p><b>Transmission Channels:</b> <a href="${SOCIALS.Instagram}" target="_blank" rel="noopener" style="color:var(--text-primary);text-decoration:underline">Instagram Direct (@new_zora)</a> or <a href="${SOCIALS.Threads}" target="_blank" rel="noopener" style="color:var(--text-primary);text-decoration:underline">Threads (@new_zora)</a></p>
+  </div>
+
+  <div class="static-card">
+    <h2 style="margin-top:0">Editorial Clarifications</h2>
+    <p>If you identify an error in any technical dispatch, notify the desk with corroborating documentation. Our editors examine all submissions within 24 business hours.</p>
+  </div>
+</div></main>`
++ foot;
+
+fs.writeFileSync(path.join(dist, 'contact.html'), contactHtml);
+
+// 5. PWA Manifest (site.webmanifest)
+const manifestJson = JSON.stringify({
+  name: 'Newzora — Verified Tech News',
+  short_name: 'Newzora',
+  description: 'Your daily verified tech briefing. AI, gadgets, gaming, and internet news cross-checked in 2+ independent sources.',
+  start_url: '/',
+  display: 'standalone',
+  background_color: '#090a0c',
+  theme_color: '#090a0c',
+  icons: [
+    {
+      src: '/img/logo.jpg',
+      sizes: '512x512',
+      type: 'image/jpeg',
+      purpose: 'any maskable'
+    }
+  ]
+}, null, 2);
+fs.writeFileSync(path.join(dist, 'site.webmanifest'), manifestJson);
+
+// 6. Google News XML Sitemap
+const newsSitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">
+${posts.map(p => `  <url>
+    <loc>${SITE}/post/${p.slug}.html</loc>
+    <news:news>
+      <news:publication>
+        <news:name>Newzora</news:name>
+        <news:language>en</news:language>
+      </news:publication>
+      <news:publication_date>${p.date}T08:00:00Z</news:publication_date>
+      <news:title>${escXml(p.title)}</news:title>
+    </news:news>
+  </url>`).join('\n')}
+</urlset>`;
+fs.writeFileSync(path.join(dist, 'news-sitemap.xml'), newsSitemapXml);
+
+// 7. Comprehensive Standard XML Sitemap (with image extensions)
+const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <url>
+    <loc>${SITE}/</loc>
+    <changefreq>hourly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>${SITE}/about.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>${SITE}/editorial-policy.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>${SITE}/contact.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+${CATEGORIES.map(c => `  <url>
+    <loc>${SITE}/category/${c.slug}.html</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>`).join('\n')}
+${posts.map(p => `  <url>
+    <loc>${SITE}/post/${p.slug}.html</loc>
+    <lastmod>${p.date}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <image:image>
+      <image:loc>${SITE}/${p.image}</image:loc>
+      <image:title>${escXml(p.title)}</image:title>
+    </image:image>
+  </url>`).join('\n')}
+</urlset>`;
+fs.writeFileSync(path.join(dist, 'sitemap.xml'), sitemapXml);
+
+// 8. RSS 2.0 Feed (feed.xml & rss.xml)
+const rssFeedXml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>Newzora — Verified Tech &amp; Gadget News</title>
+    <link>${SITE}/</link>
+    <description>Your daily verified tech briefing. AI, gadgets, gaming, and internet news cross-checked in 2+ independent sources.</description>
+    <language>en-us</language>
+    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+    <atom:link href="${SITE}/feed.xml" rel="self" type="application/rss+xml"/>
+${posts.map(p => `    <item>
+      <title>${escXml(p.title)}</title>
+      <link>${SITE}/post/${p.slug}.html</link>
+      <guid isPermaLink="true">${SITE}/post/${p.slug}.html</guid>
+      <pubDate>${new Date(p.date + 'T08:00:00Z').toUTCString()}</pubDate>
+      <category>${escXml(p.category)}</category>
+      <description>${escXml(cleanDescription(p.body, 200))}</description>
+      <media:content url="${SITE}/${p.image}" medium="image" type="image/jpeg" width="1200" height="675" />
+      <enclosure url="${SITE}/${p.image}" length="102400" type="image/jpeg" />
+    </item>`).join('\n')}
+  </channel>
+</rss>`;
+fs.writeFileSync(path.join(dist, 'feed.xml'), rssFeedXml);
+fs.writeFileSync(path.join(dist, 'rss.xml'), rssFeedXml);
+
+// 9. Robots.txt
+const robotsTxt = `User-agent: *
+Allow: /
+
+Sitemap: ${SITE}/sitemap.xml
+Sitemap: ${SITE}/news-sitemap.xml
+`;
+fs.writeFileSync(path.join(dist, 'robots.txt'), robotsTxt);
+
+console.log(`[SEO Engine & UI Overhaul] Build complete:
+- Bespoke Linear/Stripe-tier aesthetic with zero AI slop
+- Asymmetric editorial hero & responsive magazine architecture
+- Precision Lucide-style 1.5px stroke SVG icons
+- Plus Jakarta Sans & JetBrains Mono typography pairing
+- Deep neutral slate palette (#090a0c) with hairline micro-elevation
+- 1 Homepage with WebSite & NewsMediaOrganization schema
+- ${CATEGORIES.length} Category hubs (/category/*.html)
+- 3 E-E-A-T trust hubs (About, Editorial Policy, Contact)
+- ${posts.length} Article pages with NewsArticle rich snippets
+- 1 Google News XML Sitemap (${posts.length} stories)
+- 1 Standard XML Sitemap with images & priority
+- 2 RSS 2.0 Feeds (feed.xml & rss.xml)
+- 1 PWA Manifest (site.webmanifest)
+- 1 Robots.txt with multi-sitemap indexing directives`);

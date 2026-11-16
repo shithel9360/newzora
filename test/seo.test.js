@@ -5,7 +5,7 @@ const path = require('path');
 
 const DIST = path.join(__dirname, '..', 'dist');
 
-describe('Newzora SEO & SERP Verification', () => {
+describe('Newzora SEO & UI Craft Verification', () => {
 
   test('Robots.txt contains user-agent and both standard and news sitemaps', () => {
     const robotsPath = path.join(DIST, 'robots.txt');
@@ -162,6 +162,23 @@ describe('Newzora SEO & SERP Verification', () => {
     assert.match(sample, /class="post-nav"/, 'Must have post navigation');
     assert.match(sample, /class="share-bar"/, 'Must have share bar');
     assert.match(sample, /<main>/, 'Must have semantic main tag');
+  });
+
+  test('Design system enforces intentional typography pairing and zero emoji slop', () => {
+    const indexHtml = fs.readFileSync(path.join(DIST, 'index.html'), 'utf8');
+
+    // Intentional font pairing: Plus Jakarta Sans & JetBrains Mono
+    assert.match(indexHtml, /Plus\+Jakarta\+Sans/i, 'Must link Plus Jakarta Sans');
+    assert.match(indexHtml, /JetBrains\+Mono/i, 'Must link JetBrains Mono');
+
+    // Zero AI emoji pollution in section titles and verification badges
+    assert.ok(!indexHtml.includes('🔥 Trending Now'), 'Emoji 🔥 in Trending Now must be purged');
+    assert.ok(!indexHtml.includes('✓ VERIFIED IN 2+ SOURCES'), 'All-caps emoji badge must be purged');
+
+    // Hairline micro-elevation & neutral slate surface palette
+    assert.match(indexHtml, /--bg:\s*#090a0c/, 'Deep neutral canvas must be configured');
+    assert.match(indexHtml, /--font-mono/, 'Mono typographic stack must be defined');
+    assert.match(indexHtml, /svg class="ico"/, 'Must render bespoke SVG icons');
   });
 
 });
