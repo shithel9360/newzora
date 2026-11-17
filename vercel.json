@@ -14,7 +14,7 @@
       ]
     },
     {
-      "source": "/(.*)\\.(xml|txt)",
+      "source": "/(.*)\\.(xml|txt|json)",
       "headers": [
         {
           "key": "Cache-Control",
