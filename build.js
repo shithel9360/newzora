@@ -1406,6 +1406,16 @@ footer a:hover {
   }
 }
 @media (max-width: 640px) {
+  .hwrap {
+    padding: 10px 14px;
+    gap: 12px;
+  }
+  .brand-title span {
+    display: none;
+  }
+  .header-actions .btn.primary {
+    display: none;
+  }
   .post-nav {
     grid-template-columns: 1fr;
   }
