@@ -107,6 +107,16 @@ const parseSource = body => {
   };
 };
 
+// Split a "Sources: ..." attribution string into individual source names.
+// Separators used in the corpus are ';' and ' / '; commas are NOT split — they
+// appear inside source descriptions and dates. Names stay verbatim from the
+// article; nothing is invented. A link is rendered only when the name itself
+// contains a URL (none do today, but a future post may carry one).
+const splitSources = source => {
+  return source.split(/;|\s\/\s/).map(s => s.trim().replace(/\.$/, '')).filter(Boolean)
+    .filter((s, i, a) => a.indexOf(s) === i);
+};
+
 const renderBody = paragraphs => {
   return paragraphs.map(x => {
     if (x.startsWith('### ')) return `<h3>${esc(x.slice(4).trim())}</h3>`;
@@ -1436,9 +1446,113 @@ footer a:hover {
     width: 100%;
   }
 }
+
+/* Reading progress bar (article pages) */
+.read-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: transparent;
+  z-index: 60;
+  pointer-events: none;
+}
+.read-progress-fill {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: #34d399;
+  transition: width 80ms linear;
+}
+
+/* Named sources section (article pages) */
+.sources-section {
+  margin: 32px 0 24px;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+}
+.sources-head {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--badge-emerald-fg);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+.sources-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sources-list li {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  padding-left: 14px;
+  position: relative;
+}
+.sources-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--badge-emerald-fg);
+}
+.sources-list a {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Load more (homepage wire river) */
+.load-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 22px 0 6px;
+}
+
+/* 404 page */
+.notfound-code {
+  font-family: var(--font-mono);
+  font-size: clamp(64px, 12vw, 120px);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--text-primary);
+  margin: 8px 0 4px;
+}
+.notfound-search {
+  display: flex;
+  gap: 8px;
+  margin: 22px 0 8px;
+  max-width: 480px;
+}
+.notfound-search input {
+  flex: 1;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 10px 14px;
+  border-radius: 7px;
+  font-size: 14px;
+}
 `;
 
-const head = (title, desc, img, url, ogt = 'article', ld = '', activeNav = '', articleMeta = null) => {
+const head = (title, desc, img, url, ogt = 'article', ld = '', activeNav = '', articleMeta = null, opts = {}) => {
   const cleanDesc = cleanDescription(desc, 155);
   const imgUrl = img.startsWith('http') ? img : `${SITE}/${img.replace(/^\/+/, '')}`;
   const imgDims = img.startsWith('http') ? null : jpegSize(path.join(dist, img.replace(/^\/+/, '')));
@@ -1446,8 +1560,8 @@ const head = (title, desc, img, url, ogt = 'article', ld = '', activeNav = '', a
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(cleanDesc)}">
-<link rel="canonical" href="${url}">
-<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+${opts.noCanonical ? '' : `<link rel="canonical" href="${url}">`}
+${opts.noindex ? '<meta name="robots" content="noindex, nofollow">' : '<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">'}
 <meta name="google-site-verification" content="google64f3ab4c81877d0d">
 <meta name="author" content="Newzora">
 <meta name="publisher" content="Newzora">
@@ -1626,7 +1740,7 @@ const homeLD = JSON.stringify({
         '@type': 'SearchAction',
         target: {
           '@type': 'EntryPoint',
-          urlTemplate: SITE + '/#latest?q={search_term_string}'
+          urlTemplate: SITE + '/?q={search_term_string}'
         },
         'query-input': 'required name=search_term_string'
       }
@@ -1687,7 +1801,7 @@ let indexHtml = head(
   </section>`;
 
 // Category sections with editorial magazine layout
-const catOrder = ['AI', 'Gadgets', 'Gaming', 'Mobile', 'Cybersecurity', 'Tech'];
+const catOrder = ['AI', 'Gadgets', 'Gaming', 'Mobile', 'Cybersecurity', 'Tech', 'Space', 'Tech Business'];
 for (const c of catOrder) {
   const cp = posts.filter(p => p.category === c);
   if (cp.length < 3) continue;
@@ -1727,7 +1841,7 @@ indexHtml += `
     </div>
     <div class="wire-stream">
       ${posts.map(p => `
-      <a class="wire-row" href="/post/${p.slug}.html" data-cat="${esc(p.category)}" data-t="${esc((p.title + ' ' + (paras(p)[0] || '').replace(/^#{1,3}\s+/, '')).toLowerCase())}">
+      <a class="wire-row" href="/post/${p.slug}.html" data-cat="${esc(p.category)}">
         <img loading="lazy" src="/${p.image}" alt="${esc(p.title)}" class="wire-thumb" width="78" height="78">
         <div class="wire-details">
           <div class="wire-meta">
@@ -1738,6 +1852,9 @@ indexHtml += `
           <h3 class="wire-title">${esc(p.title)}</h3>
         </div>
       </a>`).join('')}
+    </div>
+    <div class="load-more-wrap">
+      <button id="load-more" class="btn ghost" type="button"></button>
     </div>
     <div id="no-res" class="empty-state">
       <div class="empty-icon">${icons.search}</div>
@@ -1772,20 +1889,55 @@ indexHtml += `
   const rows = Array.from(document.querySelectorAll('.wire-row'));
   const q = document.getElementById('q');
   const noRes = document.getElementById('no-res');
+  const loadMoreBtn = document.getElementById('load-more');
+  const PAGE_SIZE = 25;
+  let visibleLimit = PAGE_SIZE;
   let currentCat = 'All';
+  let searchIndex = null; // slug -> lowercase searchable text (title + excerpt + category + date)
+
+  function rowSlug(r) {
+    const href = r.getAttribute('href') || '';
+    return href.split('/post/').pop().replace('.html', '');
+  }
+  function rowText(r) {
+    const slug = rowSlug(r);
+    if (searchIndex && searchIndex.has(slug)) return searchIndex.get(slug);
+    const t = r.querySelector('.wire-title');
+    return (t ? t.textContent : '').toLowerCase();
+  }
 
   function applyFilter() {
     const query = (q.value || '').trim().toLowerCase();
+    const filtering = !!query || currentCat !== 'All';
     let count = 0;
-    rows.forEach(r => {
+    rows.forEach((r, i) => {
       const matchCat = currentCat === 'All' || r.dataset.cat === currentCat;
-      const matchQuery = !query || r.dataset.t.includes(query);
-      const visible = matchCat && matchQuery;
+      const matchQuery = !query || rowText(r).includes(query);
+      const withinLimit = filtering || i < visibleLimit;
+      const visible = matchCat && matchQuery && withinLimit;
       r.style.display = visible ? '' : 'none';
       if (visible) count++;
     });
     if (noRes) noRes.style.display = count === 0 ? 'block' : 'none';
+    if (loadMoreBtn) {
+      const remaining = rows.length - visibleLimit;
+      if (!filtering && remaining > 0) {
+        loadMoreBtn.style.display = '';
+        loadMoreBtn.textContent = 'Load more dispatches (' + remaining + ' remaining)';
+      } else {
+        loadMoreBtn.style.display = 'none';
+      }
+    }
   }
+
+  // Compact search index (search.json): titles + excerpts + categories + dates.
+  // Falls back to the visible row titles if the index cannot be fetched.
+  fetch('/search.json').then(function(res) { return res.json(); }).then(function(items) {
+    searchIndex = new Map(items.map(function(it) {
+      return [it.slug, (it.title + ' ' + it.excerpt + ' ' + it.category + ' ' + it.date).toLowerCase()];
+    }));
+    applyFilter();
+  }).catch(function() { /* index unavailable — title-text fallback stays active */ });
 
   chips.forEach(b => {
     b.addEventListener('click', () => {
@@ -1796,7 +1948,17 @@ indexHtml += `
     });
   });
 
+  if (loadMoreBtn) {
+    loadMoreBtn.addEventListener('click', () => {
+      visibleLimit += PAGE_SIZE;
+      applyFilter();
+    });
+  }
+
   if (q) {
+    // Deep-link a search from the 404 page or a shared link: /?q=term
+    const preset = new URLSearchParams(window.location.search).get('q');
+    if (preset) q.value = preset;
     q.addEventListener('input', applyFilter);
     document.addEventListener('keydown', e => {
       if (e.key === '/' && document.activeElement !== q) {
@@ -1805,11 +1967,25 @@ indexHtml += `
       }
     });
   }
+
+  applyFilter();
 })();
 </script>`
 + foot;
 
 fs.writeFileSync(path.join(dist, 'index.html'), indexHtml);
+
+// 1b. Compact client-side search index (titles + excerpts + categories + dates only — no full bodies)
+const searchIndex = posts.map(p => ({
+  id: p.id,
+  slug: p.slug,
+  title: p.title,
+  excerpt: cleanDescription(paras(p)[1] || paras(p)[0] || '', 150),
+  category: p.category,
+  date: p.date,
+  url: `/post/${p.slug}.html`
+}));
+fs.writeFileSync(path.join(dist, 'search.json'), JSON.stringify(searchIndex));
 
 // 2. Individual Article Pages
 posts.forEach((p, i) => {
@@ -1820,8 +1996,16 @@ posts.forEach((p, i) => {
     </a>
   `).join('');
 
-  const sameCat = posts.filter(x => x.category === p.category && x.id !== p.id).slice(0, 3);
-  const more = (sameCat.length ? sameCat : posts.filter(x => x.id !== p.id).slice(0, 3)).map(x => card(x)).join('');
+  const sameCat = posts.filter(x => x.category === p.category && x.id !== p.id);
+  // Related dispatches: same category first, then the newest other stories — always 4, never this article.
+  const related = sameCat.slice(0, 4);
+  if (related.length < 4) {
+    for (const x of posts) {
+      if (related.length >= 4) break;
+      if (x.id !== p.id && !related.includes(x)) related.push(x);
+    }
+  }
+  const more = related.map(x => card(x)).join('');
   const catSlug = categorySlug(p.category);
   const desc = cleanDescription(p.body, 155);
 
@@ -1873,15 +2057,24 @@ posts.forEach((p, i) => {
     ]
   });
 
-  const sourceBoxHtml = source
-    ? `<div class="source-box">
-         <span class="source-tag">${icons.shieldCheck} Corroborated Primary Sources</span>
-         <span class="source-text">${esc(source)}</span>
-       </div>`
-    : `<div class="source-box">
-         <span class="source-tag">${icons.shieldCheck} Corroboration Standard</span>
-         <span class="source-text">Corroborated across two or more primary regulatory filings, corporate releases, or investigative industry dispatches prior to publication.</span>
-       </div>`;
+  // Named sources, verbatim from the article's own "Sources:" line.
+  // No Sources line (17 posts) means no section at all — never invent one.
+  const sourceNames = source ? splitSources(source) : [];
+  const sourcesSectionHtml = sourceNames.length
+    ? `<section class="sources-section" aria-label="Sources">
+         <h2 class="sources-head">${icons.shieldCheck} Sources</h2>
+         <ul class="sources-list">
+           ${sourceNames.map(name => {
+             const urlMatch = name.match(/(https?:\/\/\S+)/);
+             if (urlMatch) {
+               const label = name.replace(urlMatch[1], '').trim().replace(/[:\-–—]\s*$/, '') || urlMatch[1];
+               return `<li><a href="${esc(urlMatch[1])}" target="_blank" rel="noopener">${esc(label)}</a></li>`;
+             }
+             return `<li>${esc(name)}</li>`;
+           }).join('')}
+         </ul>
+       </section>`
+    : '';
 
   const shareUrl = `${SITE}/post/${p.slug}.html`;
   const shareText = encodeURIComponent(p.title);
@@ -1894,7 +2087,7 @@ posts.forEach((p, i) => {
     <span class="share-label">Transmit:</span>
     <a class="btn ghost" href="${twitterShare}" target="_blank" rel="noopener">${icons.x} <span>X</span></a>
     <a class="btn ghost" href="${waShare}" target="_blank" rel="noopener">${icons.whatsapp} <span>WhatsApp</span></a>
-    <button class="btn ghost copy-btn" onclick="navigator.clipboard.writeText(window.location.href).then(()=>{const s=this.querySelector('.copy-txt');s.textContent='Link Copied';setTimeout(()=>s.textContent='Copy Link',2000)})">
+    <button class="btn ghost copy-btn" type="button" data-copy-link aria-label="Copy article link">
       ${icons.copy} <span class="copy-txt">Copy Link</span>
     </button>
     ${externalLinks}
@@ -1926,7 +2119,9 @@ posts.forEach((p, i) => {
     p.category,
     { published: dstrIso(p.date), section: p.category }
   )
-  + `<main id="main-content"><article>
+  + `<main id="main-content">
+  <div class="read-progress" aria-hidden="true"><span class="read-progress-fill" id="read-progress-fill"></span></div>
+  <article>
     <nav class="bc" aria-label="Breadcrumb">
       <ol itemscope itemtype="https://schema.org/BreadcrumbList">
         <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
@@ -1965,7 +2160,7 @@ posts.forEach((p, i) => {
       ${renderBody(bodyParagraphs.slice(1))}
     </div>
 
-    ${sourceBoxHtml}
+    ${sourcesSectionHtml}
     ${shareButtonsHtml}
     ${postNavHtml}
 
@@ -1974,7 +2169,58 @@ posts.forEach((p, i) => {
       <a class="section-link" href="/category/${catSlug}.html">All ${esc(p.category)} ${icons.arrowRight}</a>
     </div>
     <div class="more-grid">${more}</div>
-  </article></main>`
+  </article>
+<script>
+(function() {
+  // Reading progress: the bar fills as the reader moves through the article body.
+  var fill = document.getElementById('read-progress-fill');
+  var articleBody = document.querySelector('article .body');
+  function updateProgress() {
+    if (!fill || !articleBody) return;
+    var start = articleBody.offsetTop;
+    var end = start + articleBody.offsetHeight - window.innerHeight;
+    var p = end <= start ? 1 : (window.scrollY - start) / (end - start);
+    p = Math.min(1, Math.max(0, p));
+    fill.style.width = (p * 100).toFixed(1) + '%';
+  }
+  window.addEventListener('scroll', updateProgress, { passive: true });
+  window.addEventListener('resize', updateProgress);
+  updateProgress();
+
+  // Copy link: Clipboard API with a textarea + execCommand fallback for
+  // older browsers and non-secure contexts.
+  var copyBtn = document.querySelector('[data-copy-link]');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', function() {
+      var url = window.location.href;
+      var label = copyBtn.querySelector('.copy-txt');
+      function done() {
+        if (label) {
+          label.textContent = 'Link Copied';
+          setTimeout(function() { label.textContent = 'Copy Link'; }, 2000);
+        }
+      }
+      function fallback() {
+        var ta = document.createElement('textarea');
+        ta.value = url;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'absolute';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) { /* clipboard unavailable */ }
+        document.body.removeChild(ta);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(done).catch(fallback);
+      } else {
+        fallback();
+      }
+    });
+  }
+})();
+</script>
+</main>`
   + foot;
 
   fs.writeFileSync(path.join(dist, 'post', `${p.slug}.html`), postHtml);
@@ -2191,6 +2437,59 @@ const contactHtml = head(
 
 fs.writeFileSync(path.join(dist, 'contact.html'), contactHtml);
 
+// 4b. Branded 404 page (Vercel serves dist/404.html for unknown routes)
+const notFoundLD = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  name: 'Page Not Found — Newzora',
+  url: `${SITE}/404.html`,
+  description: 'The dispatch you requested does not exist or has moved. Search the archive or return to the latest verified tech news.'
+});
+
+const notFoundHtml = head(
+  'Page Not Found — Newzora',
+  'The dispatch you requested does not exist or has moved. Search the Newzora archive or return to the latest verified tech news.',
+  'img/logo.jpg',
+  `${SITE}/404.html`,
+  'website',
+  notFoundLD,
+  '',
+  null,
+  { noindex: true, noCanonical: true }
+)
++ `<main id="main-content"><div class="static-page">
+  <nav class="bc" aria-label="Breadcrumb">
+    <ol itemscope itemtype="https://schema.org/BreadcrumbList">
+      <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><a itemprop="item" href="/"><span itemprop="name">Home</span></a><meta itemprop="position" content="1"></li>
+      <li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem"><span itemprop="name">Not Found</span><meta itemprop="position" content="2"></li>
+    </ol>
+  </nav>
+
+  <span class="pill-cat">404 · Dispatch Not Found</span>
+  <div class="notfound-code" aria-hidden="true">404</div>
+  <h1>This dispatch does not exist</h1>
+  <p class="dek">The story may have moved, or the link may contain a typo. Search the archive below, or head back to the latest verified coverage.</p>
+
+  <form class="notfound-search" action="/" method="get" role="search">
+    <label class="sr-only" for="nf-q">Search Newzora</label>
+    <input id="nf-q" name="q" type="search" placeholder="Search dispatches…" aria-label="Search Newzora">
+    <button class="btn primary" type="submit">Search</button>
+  </form>
+
+  <p><a href="/#latest" style="color:var(--text-primary);text-decoration:underline">Browse the latest dispatches</a> &nbsp;·&nbsp; <a href="/about.html" style="color:var(--text-primary);text-decoration:underline">About Newzora</a> &nbsp;·&nbsp; <a href="/contact.html" style="color:var(--text-primary);text-decoration:underline">Contact the newsroom</a></p>
+
+  <div class="section-head" style="margin-top:40px">
+    <h2 class="section-title">Start With What Is Trending</h2>
+    <a class="section-link" href="/">All stories ${icons.arrowRight}</a>
+  </div>
+  <div class="more-grid">
+    ${trending.slice(0, 3).map(x => card(x)).join('')}
+  </div>
+</div></main>`
++ foot;
+
+fs.writeFileSync(path.join(dist, '404.html'), notFoundHtml);
+
 // 5. PWA Manifest (site.webmanifest)
 const manifestJson = JSON.stringify({
   name: 'Newzora — Verified Tech News',
@@ -2314,6 +2613,8 @@ console.log(`[SEO Engine & UI Overhaul] Build complete:
 - 1 Homepage with WebSite & NewsMediaOrganization schema
 - ${CATEGORIES.length} Category hubs (/category/*.html)
 - 3 E-E-A-T trust hubs (About, Editorial Policy, Contact)
+- 1 Branded 404 page (dist/404.html, noindex)
+- 1 Compact search index (search.json, ${searchIndex.length} entries — titles, excerpts, categories, dates)
 - ${posts.length} Article pages with NewsArticle rich snippets
 - 1 Google News XML Sitemap (${posts.length} stories)
 - 1 Standard XML Sitemap with images & priority
