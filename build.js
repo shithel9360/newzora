@@ -372,7 +372,7 @@ header {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-nav {
+.hwrap nav {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -380,10 +380,10 @@ nav {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
-nav::-webkit-scrollbar {
+.hwrap nav::-webkit-scrollbar {
   display: none;
 }
-nav a {
+.hwrap nav a {
   padding: 6px 11px;
   border-radius: 6px;
   font-size: 13px;
@@ -392,11 +392,11 @@ nav a {
   white-space: nowrap;
   transition: all var(--duration-fast) var(--ease-spring);
 }
-nav a:hover {
+.hwrap nav a:hover {
   color: var(--text-primary);
   background: var(--surface-raised);
 }
-nav a.active {
+.hwrap nav a.active {
   color: var(--text-primary);
   background: var(--surface-raised);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
@@ -551,7 +551,7 @@ nav a.active {
 .lead-img-wrap {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 4 / 5;
   background: var(--bg-subtle);
   overflow: hidden;
 }
@@ -611,6 +611,7 @@ nav a.active {
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow-card);
+  align-self: start;
 }
 .dispatch-head {
   display: flex;
@@ -771,7 +772,7 @@ nav a.active {
 }
 .card-img-wrap {
   width: 100%;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 4 / 5;
   background: var(--bg-subtle);
   overflow: hidden;
 }
@@ -1138,7 +1139,7 @@ article h1 {
 }
 .poster {
   width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 4 / 5;
   border-radius: 12px;
   border: 1px solid var(--border);
   object-fit: cover;
@@ -1234,6 +1235,7 @@ article h1 {
   gap: 5px;
   box-shadow: var(--shadow-sm);
   transition: all var(--duration-fast) var(--ease-spring);
+  min-width: 0;
 }
 .pnav-link:hover {
   background: var(--surface-raised);
@@ -1253,6 +1255,7 @@ article h1 {
   display: flex;
   align-items: center;
   gap: 4px;
+  min-width: 0;
 }
 .pnav-link.next .pnav-label {
   justify-content: flex-end;
@@ -1263,6 +1266,7 @@ article h1 {
   line-height: 1.35;
   letter-spacing: -0.015em;
   color: var(--text-primary);
+  overflow-wrap: break-word;
 }
 .more-grid {
   display: grid;
