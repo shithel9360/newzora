@@ -34,4 +34,18 @@ describe('Newzora Phase 2b — full 4:5 posters, story-nav overflow fix', () => 
       '.pnav-label needs min-width: 0');
   });
 
+  test('Header nav rules are scoped so they cannot leak into story nav or breadcrumbs', () => {
+    const home = read('index.html');
+    // The bare `nav a` rule forced white-space: nowrap (and overflow-x: auto)
+    // onto every <nav>, which clipped story-nav titles to one line.
+    assert.ok(/\.hwrap nav a\s*\{[^}]*white-space:\s*nowrap/.test(home),
+      'header nav links keep nowrap, scoped to .hwrap nav');
+    assert.ok(!/(^|[}\n])nav a\s*\{/.test(home),
+      'no bare `nav a` rule may remain to leak nowrap into other navs');
+    assert.ok(!/(^|[}\n])nav\s*\{[^}]*overflow-x:\s*auto/.test(home),
+      'no bare `nav` rule may remain to clip .post-nav horizontally');
+    assert.ok(/\.dispatch-rail\s*\{[^}]*align-self:\s*start/.test(home),
+      'dispatch rail must not stretch to the tall 4:5 hero height');
+  });
+
 });

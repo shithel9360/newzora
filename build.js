@@ -372,7 +372,7 @@ header {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-nav {
+.hwrap nav {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -380,10 +380,10 @@ nav {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
-nav::-webkit-scrollbar {
+.hwrap nav::-webkit-scrollbar {
   display: none;
 }
-nav a {
+.hwrap nav a {
   padding: 6px 11px;
   border-radius: 6px;
   font-size: 13px;
@@ -392,11 +392,11 @@ nav a {
   white-space: nowrap;
   transition: all var(--duration-fast) var(--ease-spring);
 }
-nav a:hover {
+.hwrap nav a:hover {
   color: var(--text-primary);
   background: var(--surface-raised);
 }
-nav a.active {
+.hwrap nav a.active {
   color: var(--text-primary);
   background: var(--surface-raised);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
@@ -611,6 +611,7 @@ nav a.active {
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow-card);
+  align-self: start;
 }
 .dispatch-head {
   display: flex;
