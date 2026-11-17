@@ -161,7 +161,7 @@ describe('Newzora SEO & UI Craft Verification', () => {
     const sample = fs.readFileSync(path.join(postDir, files[0]), 'utf8');
     assert.match(sample, /class="post-nav"/, 'Must have post navigation');
     assert.match(sample, /class="share-bar"/, 'Must have share bar');
-    assert.match(sample, /<main>/, 'Must have semantic main tag');
+    assert.match(sample, /<main[\s>]/, 'Must have semantic main tag');
   });
 
   test('Design system enforces intentional typography pairing and zero emoji slop', () => {
