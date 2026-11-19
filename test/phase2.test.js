@@ -65,7 +65,7 @@ describe('Newzora Phase 2 — structure & reading experience', () => {
     assert.ok(indexHtml.includes("Load more dispatches (' + remaining + ' remaining)"), 'load-more must show the remaining count');
     assert.ok(indexHtml.includes('visibleLimit += PAGE_SIZE'), 'load-more must advance the visible limit in batches');
     assert.ok(indexHtml.includes("new URLSearchParams(window.location.search).get('q')"), 'search must honour a ?q= deep link');
-    assert.match(indexHtml, /"urlTemplate":"https:\/\/newzora-pied\.vercel\.app\/\?q=\{search_term_string\}"/,
+    assert.match(indexHtml, /"urlTemplate":"https:\/\/newzora\.asf\.run\/\?q=\{search_term_string\}"/,
       'WebSite SearchAction must point at /?q=, not /#latest?q=');
   });
 
@@ -95,8 +95,8 @@ describe('Newzora Phase 2 — structure & reading experience', () => {
       if (hasNext) assert.ok(html.includes(`/post/${posts[i - 1].slug}.html`), `${p.slug} Next must link the newer post`);
     }
     // Edges spelled out explicitly.
-    assert.ok(!postHtml(byId[119]).includes('Next Dispatch'), 'newest post (119) has no Next');
-    assert.ok(postHtml(byId[119]).includes('Previous Dispatch'), 'newest post (119) has Previous');
+    assert.ok(!postHtml(byId[131]).includes('Next Dispatch'), 'newest post (131) has no Next');
+    assert.ok(postHtml(byId[131]).includes('Previous Dispatch'), 'newest post (131) has Previous');
     assert.ok(!postHtml(byId[1]).includes('Previous Dispatch'), 'oldest post (1) has no Previous');
     assert.ok(postHtml(byId[1]).includes('Next Dispatch'), 'oldest post (1) has Next');
   });
@@ -116,7 +116,7 @@ describe('Newzora Phase 2 — structure & reading experience', () => {
     assert.deepEqual(cats119, ['AI', 'AI', 'AI', 'AI'], 'id 119 related must all be AI');
     // Fill behaviour: id 47 is the sole Apple post, so its related are the 4 newest other posts.
     const sec47 = postHtml(byId[47]).split('Related Dispatches')[1];
-    for (const id of [119, 118, 117, 116]) {
+    for (const id of [131, 130, 129, 128]) {
       assert.ok(sec47.includes(`/post/${byId[id].slug}.html`), `id 47 related must include newest post ${id}`);
     }
   });

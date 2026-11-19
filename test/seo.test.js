@@ -13,8 +13,8 @@ describe('Newzora SEO & UI Craft Verification', () => {
     const content = fs.readFileSync(robotsPath, 'utf8');
     assert.match(content, /User-agent:\s*\*/i);
     assert.match(content, /Allow:\s*\//i);
-    assert.match(content, /Sitemap:\s*https:\/\/newzora-pied\.vercel\.app\/sitemap\.xml/i);
-    assert.match(content, /Sitemap:\s*https:\/\/newzora-pied\.vercel\.app\/news-sitemap\.xml/i);
+    assert.match(content, /Sitemap:\s*https:\/\/newzora\.asf\.run\/sitemap\.xml/i);
+    assert.match(content, /Sitemap:\s*https:\/\/newzora\.asf\.run\/news-sitemap\.xml/i);
   });
 
   test('Google News Sitemap exists and uses Google News schema', () => {
@@ -33,10 +33,10 @@ describe('Newzora SEO & UI Craft Verification', () => {
     const sitemapPath = path.join(DIST, 'sitemap.xml');
     assert.ok(fs.existsSync(sitemapPath), 'sitemap.xml must exist in dist');
     const xml = fs.readFileSync(sitemapPath, 'utf8');
-    assert.match(xml, /<loc>https:\/\/newzora-pied\.vercel\.app\/<\/loc>/);
-    assert.match(xml, /<loc>https:\/\/newzora-pied\.vercel\.app\/about\.html<\/loc>/);
-    assert.match(xml, /<loc>https:\/\/newzora-pied\.vercel\.app\/editorial-policy\.html<\/loc>/);
-    assert.match(xml, /<loc>https:\/\/newzora-pied\.vercel\.app\/category\/ai\.html<\/loc>/);
+    assert.match(xml, /<loc>https:\/\/newzora\.asf\.run\/<\/loc>/);
+    assert.match(xml, /<loc>https:\/\/newzora\.asf\.run\/about\.html<\/loc>/);
+    assert.match(xml, /<loc>https:\/\/newzora\.asf\.run\/editorial-policy\.html<\/loc>/);
+    assert.match(xml, /<loc>https:\/\/newzora\.asf\.run\/category\/ai\.html<\/loc>/);
     assert.match(xml, /image:image/);
     assert.match(xml, /image:loc/);
     assert.match(xml, /image:title/);
@@ -73,7 +73,7 @@ describe('Newzora SEO & UI Craft Verification', () => {
       const catPath = path.join(DIST, 'category', `${cat}.html`);
       assert.ok(fs.existsSync(catPath), `category/${cat}.html must exist`);
       const html = fs.readFileSync(catPath, 'utf8');
-      assert.match(html, new RegExp(`<link\\s+rel="canonical"\\s+href="https:\\/\\/newzora-pied\\.vercel\\.app\\/category\\/${cat}\\.html">`));
+      assert.match(html, new RegExp(`<link\\s+rel="canonical"\\s+href="https:\\/\\/newzora\\.asf\\.run\\/category\\/${cat}\\.html">`));
       assert.match(html, /CollectionPage/);
       assert.match(html, /BreadcrumbList/);
       const ldMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
