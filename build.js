@@ -125,7 +125,7 @@ const renderBody = paragraphs => {
   }).join('');
 };
 
-const SITE = 'https://newzora-pied.vercel.app';
+const SITE = 'https://newzora.asf.run';
 const SOCIALS = {
   Instagram: 'https://www.instagram.com/new_zora',
   Threads: 'https://www.threads.com/@new_zora',

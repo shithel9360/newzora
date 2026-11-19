@@ -22,7 +22,7 @@ describe('Newzora Phase 1 — quick wins', () => {
       const catPath = path.join(DIST, 'category', `${cat}.html`);
       assert.ok(fs.existsSync(catPath), `category/${cat}.html must exist`);
       const html = fs.readFileSync(catPath, 'utf8');
-      assert.match(html, new RegExp(`<link\\s+rel="canonical"\\s+href="https:\\/\\/newzora-pied\\.vercel\\.app\\/category\\/${cat}\\.html">`));
+      assert.match(html, new RegExp(`<link\\s+rel="canonical"\\s+href="https:\\/\\/newzora\\.asf\\.run\\/category\\/${cat}\\.html">`));
       assert.match(html, /CollectionPage/);
       assert.match(html, /BreadcrumbList/);
       const ldMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
@@ -136,7 +136,7 @@ describe('Newzora Phase 1 — quick wins', () => {
   test('Sitemap lists all 14 category pages', () => {
     const sitemap = fs.readFileSync(path.join(DIST, 'sitemap.xml'), 'utf8');
     for (const cat of ALL_CATEGORIES) {
-      assert.ok(sitemap.includes(`<loc>https://newzora-pied.vercel.app/category/${cat}.html</loc>`), `sitemap must list category/${cat}.html`);
+      assert.ok(sitemap.includes(`<loc>https://newzora.asf.run/category/${cat}.html</loc>`), `sitemap must list category/${cat}.html`);
     }
   });
 
